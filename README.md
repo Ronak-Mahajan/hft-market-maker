@@ -1,77 +1,43 @@
-# HFT Market Making Simulator
+# Inventory-Adjusted Market Making Simulator
 
-I built this project to understand the mechanics of high-frequency trading, specifically how market makers manage inventory risk. 
-
-Most basic tutorials assume you just set a bid and an ask and collect the spread. In reality, if you don't manage your inventory, you get run over by price trends. This simulator proves that by comparing a "naive" strategy against the Avellaneda-Stoikov framework.
+A high-frequency trading backtester comparing inventory-aware strategies against naive fixed-spread approaches. Built to analyze market microstructure dynamics and risk management.
 
 ## Project Overview
 
-The simulation runs two strategies on the same price path:
+This simulator compares two market making strategies under realistic market conditions:
+- **Strategy A (Naive)**: Fixed bid-ask spread with no inventory management.
+- **Strategy B (Inventory-Aware)**: Implements the Avellaneda-Stoikov framework to dynamically skew quotes based on inventory position.
 
-1.  **Strategy A (Naive)**: Quotes a fixed spread around the mid-price. It ignores how much stock it's holding.
-2.  **Strategy B (Inventory-Aware)**: Skews its quotes based on current inventory. If it's long, it lowers quotes to sell. If it's short, it raises quotes to buy.
+The simulation environment uses **Geometric Brownian Motion (GBM)** for price dynamics and **Poisson processes** for order flow.
 
-I used Python for the simulation logic and modeled the market dynamics using stochastic processes (GBM and Poisson).
+## The Math
 
-## The Math Behind It
-
-To make the simulation realistic, I couldn't just use random walks. I implemented the following models:
-
-### 1. Price Dynamics
-The true price follows Geometric Brownian Motion (GBM). I used this because it stops prices from going negative and captures volatility better than a simple random walk.
+### Price Dynamics
+The true mid-price evolves according to Geometric Brownian Motion:
 
 $$dS_t = \mu S_t dt + \sigma S_t dW_t$$
 
-### 2. Inventory Skew (Avellaneda-Stoikov)
-This is the core logic for Strategy B. The mid-price quote is adjusted based on the inventory position $q$:
+### Inventory Risk (Avellaneda-Stoikov)
+The inventory-aware strategy skews quotes to induce mean reversion:
 
-$$\text{Quote}_{\text{mid}} = \text{True}_{\text{mid}} - q \cdot \gamma \cdot \sigma^2$$
+$$\delta_b = \delta_a + \gamma \sigma^2 q$$
 
-* $q$: Current inventory (positive = long, negative = short)
-* $\gamma$: Risk aversion parameter
-* $\sigma^2$: Volatility
-
-Basically, as inventory ($q$) gets larger, the skew gets bigger, forcing the system to dump the position faster.
-
-### 3. Order Flow
-Market orders arrive via a Poisson process. I set it up so that the probability of a trade happening actually depends on how close my quote is to the fair price. This rewards Strategy B for skewing its quotes correctly.
+Where $q$ is the current inventory and $\gamma$ is the risk aversion parameter.
 
 ## Results
 
-Running the simulation for 10,000 ticks showed a massive difference in performance.
+Running the simulation demonstrates that inventory management significantly improves risk-adjusted returns:
 
 | Metric | Strategy A (Naive) | Strategy B (Inventory-Aware) |
 |--------|-------------------|------------------------------|
-| **PnL** | -$22,322 (Loss) | +$7,336 (Profit) |
-| **Max Inventory** | ±100 (Hit limits constantly) | ±100 (Rarely hit limits) |
-| **Avg Inventory** | ~47 shares | ~36 shares |
+| **PnL** | Negative (Loss) | Positive (Profit) |
+| **Inventory Volatility** | High | Low (Mean Reverting) |
+| **Sharpe Ratio** | Negative | Positive |
 
-**Key Takeaway**: Strategy A went bankrupt because it held onto losing positions during trends. Strategy B took small hits on the spread to offload risk, which ended up being profitable in the long run.
+**Key Insight:** Strategy A often accumulates toxic inventory during trends, while Strategy B pays a small spread cost to offload risk, leading to long-term survival.
 
-## How to Run
+## Usage
 
-You need Python 3.8+ and the libraries in `requirements.txt`.
-
-1.  Clone the repo
-    ```bash
-    git clone [https://github.com/Ronak-Mahajan/hft-market-maker.git](https://github.com/Ronak-Mahajan/hft-market-maker.git)
-    ```
-
-2.  Install dependencies
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-3.  Run the notebook
-    ```bash
-    jupyter notebook simulation.ipynb
-    ```
-
-## References
-
-* Avellaneda, M., & Stoikov, S. (2008). *High-frequency trading in a limit order book*.
-* Guéant, O., Lehalle, C. A., & Fernandez-Tapia, J. (2013). *Dealing with the inventory risk*.
-
----
-
-*Created by Ronak Mahajan*
+1. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
