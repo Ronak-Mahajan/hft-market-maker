@@ -1,108 +1,57 @@
-# 🚀 Quick Setup Guide
+# Market Making Simulator (Inventory-Aware)
 
-## Files Ready for GitHub
+A high-frequency trading simulation comparing inventory-aware strategies against naive fixed-spread approaches. This project explores market microstructure dynamics, adverse selection, and inventory risk management.
 
-Your repository contains 3 files ready to push:
+## Project Overview
 
-```
-hft-market-maker/
-├── README.md              (6.8 KB) ✓
-├── requirements.txt       (77 bytes) ✓
-└── simulation.ipynb       (26 KB) ✓
-```
+This simulator compares two market making strategies under stochastic market conditions:
+- **Strategy A (Naive)**: Fixed bid-ask spread with no inventory management.
+- **Strategy B (Inventory-Aware)**: Implements an inventory skew logic (inspired by Avellaneda-Stoikov) to dynamically adjust quotes based on position.
 
-## Deployment Steps
+The simulation environment uses **Geometric Brownian Motion (GBM)** for price dynamics and **Poisson processes** for order flow.
 
-### 1. Copy to Your Local Machine
-Download the `hft-market-maker` folder to your computer.
+## The Math
 
-### 2. Initialize Git Repository
-```bash
-cd hft-market-maker
-git init
-git add .
-git commit -m "Initial commit: HFT Market Making Backtester"
-```
+### Price Dynamics
+The true mid-price evolves according to Geometric Brownian Motion:
 
-### 3. Push to GitHub
-```bash
-# Create a new repository on GitHub, then:
-git remote add origin https://github.com/YOUR_USERNAME/hft-market-maker.git
-git branch -M main
-git push -u origin main
-```
+$$dS_t = \mu S_t dt + \sigma S_t dW_t$$
 
-### 4. Test Locally (Optional but Recommended)
-```bash
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+### Inventory Risk Logic
+The inventory-aware strategy skews quotes to encourage mean reversion of inventory:
 
-# Install dependencies
-pip install -r requirements.txt
+$$\text{Skew} = -q \cdot \gamma \cdot \sigma^2$$
 
-# Run notebook
-jupyter notebook simulation.ipynb
-```
+Where $q$ is current inventory and $\gamma$ is the risk aversion parameter.
+- If $q > 0$ (Long), we lower quotes to sell.
+- If $q < 0$ (Short), we raise quotes to buy.
 
-## What Makes This Repository Stand Out
+## Key Features
 
-### 1. Professional Documentation (README.md)
-- **LaTeX Math**: Proper GBM and Avellaneda-Stoikov formulas
-- **Clear Structure**: Problem → Solution → Results
-- **Visual Appeal**: Tables, badges, formatted sections
-- **References**: Academic papers cited
+### 1. Code Structure
+- **Object-Oriented Design**: Clean class hierarchy for strategies.
+- **Vectorized Operations**: Efficient NumPy calculations.
+- **Type Hints**: Standard Python typing for clarity.
 
-### 2. Production-Quality Code (simulation.ipynb)
-- **Object-Oriented Design**: Clean class hierarchy
-- **Vectorized Operations**: NumPy efficiency
-- **Type Hints**: Professional Python practices
-- **Comprehensive Comments**: Every section explained
-- **Dark Theme Visualizations**: Optiver-style aesthetics
+### 2. Quantitative Components
+- **GBM Implementation**: Log-normal price paths.
+- **Inventory Skewing**: Implementation of risk aversion parameters.
+- **Order Flow**: Modeled using Poisson arrival times.
 
-### 3. Quantitative Rigor
-- **Correct GBM Implementation**: Log-normal price paths
-- **Proper Inventory Skewing**: γσ² term from A-S framework
-- **Realistic Order Flow**: Poisson process for market orders
-- **Risk Metrics**: Sharpe ratio, max drawdown, inventory volatility
+## Results
 
-## Expected Results
+Running the simulation typically demonstrates:
 
-When you run `simulation.ipynb`, you'll see:
+| Metric | Strategy A (Naive) | Strategy B (Inventory-Aware) |
+|--------|-------------------|------------------------------|
+| **PnL** | High Variance / Negative | Consistent / Positive |
+| **Inventory** | Drifts (High Risk) | Mean Reverting (Low Risk) |
+| **Sharpe Ratio** | Low | High |
 
-**Performance Comparison:**
-- Strategy B (Inventory-Aware): ~$7,890 PnL
-- Strategy A (Naive): ~$4,250 PnL
-- **Improvement: +85%**
+**Key Insight:** Strategy A often accumulates "toxic" inventory during trends, while Strategy B pays a small spread cost to offload risk, ensuring survival.
 
-**Inventory Control:**
-- Strategy B: ±80 shares (tight control)
-- Strategy A: ±450 shares (wild swings)
-- **Risk Reduction: 82%**
+## Usage
 
-**Two Beautiful Plots:**
-1. Cumulative PnL: Strategy B dominates throughout
-2. Inventory Levels: Strategy B mean-reverts, Strategy A drifts
-
-## Pro Tips for Your Application
-
-1. **GitHub Profile**: Make this your pinned repository
-2. **LinkedIn**: Add project to experience section with link
-3. **Application**: Mention specific techniques (GBM, A-S framework, Poisson)
-4. **Interview Prep**: Be ready to explain:
-   - Why σ² appears in the inventory skew
-   - How γ affects risk-return tradeoff
-   - Real-world extensions (LOB, adverse selection, latency)
-
-## Optiver-Specific Talking Points
-
-- "I implemented the Avellaneda-Stoikov framework to demonstrate inventory risk management"
-- "Used GBM for realistic price dynamics with controlled volatility clustering"
-- "Achieved 85% PnL improvement through systematic inventory unwinding"
-- "This shows my understanding of market microstructure and quantitative risk management"
-
----
-
-**You're ready to impress! 🎯**
-
-Good luck with your Optiver FutureFocus application!
+1. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
