@@ -1,2 +1,5 @@
 venv/
 .ipynb_checkpoints/
+# audit scratch
+_*.py
+results.json
