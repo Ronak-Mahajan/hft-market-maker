@@ -1,81 +1,449 @@
 {
+ "schema": 2,
+ "design": "four paired arms on common random numbers",
  "n_seeds": 500,
+ "seed_range": [
+  0,
+  499
+ ],
  "gamma": 0.5,
- "results": [
-  {
-   "final_pnl": {
-    "label": "final_pnl",
-    "unit": "",
-    "mean": -514.8917704099247,
-    "se": 1775.2653315944992,
-    "ci95": [
-     -3994.4118203351427,
-     2964.628279515294
-    ],
-    "median": 289.4144736911563,
-    "win_rate": 0.54,
-    "significant": false
+ "config": {
+  "initial_price": 100.0,
+  "drift": 0.0001,
+  "volatility": 0.02,
+  "dt": 1.0,
+  "poisson_rate": 0.1,
+  "order_size": 10,
+  "kappa": 10.0,
+  "fill_scale": 1.0,
+  "n_ticks": 10000,
+  "max_inventory": 100,
+  "fixed_spread": 0.1,
+  "risk_aversion": 0.5
+ },
+ "arm_names": {
+  "fixed": "fixed spread",
+  "spread_matched": "spread-matched",
+  "skew_only": "skew-only",
+  "as": "Avellaneda-Stoikov"
+ },
+ "arm_spreads": {
+  "fixed": 0.1,
+  "spread_matched": 0.19536065667772803,
+  "skew_only": 0.1,
+  "as": 0.19536065667772803
+ },
+ "arms": {
+  "fixed": {
+   "name": "fixed spread",
+   "mean": {
+    "final_pnl": -1422.6383697587876,
+    "pnl_std": 227.5630800439443,
+    "t_stat": -0.01189602151186665,
+    "max_drawdown": -29177.34966287582,
+    "inventory_std": 50.54522993091185,
+    "max_abs_inventory": 100.0,
+    "n_fills": 553.02,
+    "n_crossed": 0.0
+   },
+   "se": {
+    "final_pnl": 1913.6538890611669,
+    "pnl_std": 20.100957872475902,
+    "t_stat": 0.04092141322141544,
+    "max_drawdown": 3465.5323761425398,
+    "inventory_std": 0.4117920493578449,
+    "max_abs_inventory": 0.0,
+    "n_fills": 1.209129931140885,
+    "n_crossed": 0.0
    }
   },
-  {
-   "sharpe": {
-    "label": "sharpe",
-    "unit": "",
-    "mean": 0.052267764808869015,
-    "se": 0.03074598638651616,
-    "ci95": [
-     -0.007994368508702658,
-     0.11252989812644068
-    ],
-    "median": 0.03992357134765076,
-    "win_rate": 0.526,
-    "significant": false
+  "spread_matched": {
+   "name": "spread-matched",
+   "mean": {
+    "final_pnl": -1547.3482245538758,
+    "pnl_std": 215.273730417564,
+    "t_stat": 0.035119071148432345,
+    "max_drawdown": -27183.673737321456,
+    "inventory_std": 44.41259586249158,
+    "max_abs_inventory": 99.74,
+    "n_fills": 344.57,
+    "n_crossed": 0.0
+   },
+   "se": {
+    "final_pnl": 1503.2885669469174,
+    "pnl_std": 16.923718330878888,
+    "t_stat": 0.04071338288033843,
+    "max_drawdown": 2405.110860730885,
+    "inventory_std": 0.47730752915995117,
+    "max_abs_inventory": 0.09100199297515907,
+    "n_fills": 0.9170802977630095,
+    "n_crossed": 0.0
    }
   },
-  {
-   "inventory_std": {
-    "label": "inventory_std",
-    "unit": "",
-    "mean": 8.592552725196986,
-    "se": 0.38873464486745374,
-    "ci95": [
-     7.830632821256777,
-     9.354472629137195
-    ],
-    "median": 8.61355701240328,
-    "win_rate": 0.854,
-    "significant": true
+  "skew_only": {
+   "name": "skew-only",
+   "mean": {
+    "final_pnl": -1465.3592800558724,
+    "pnl_std": 202.9238563927725,
+    "t_stat": 0.006377271880249289,
+    "max_drawdown": -26336.94843101343,
+    "inventory_std": 46.14346686968672,
+    "max_abs_inventory": 99.92,
+    "n_fills": 566.584,
+    "n_crossed": 0.0
+   },
+   "se": {
+    "final_pnl": 1845.0540598037028,
+    "pnl_std": 18.791918611879343,
+    "t_stat": 0.04075247059105444,
+    "max_drawdown": 3321.8716447899283,
+    "inventory_std": 0.318059774962423,
+    "max_abs_inventory": 0.03987957825156938,
+    "n_fills": 1.1387569639065622,
+    "n_crossed": 0.0
    }
   },
-  {
-   "max_drawdown": {
-    "label": "max_drawdown",
-    "unit": "",
-    "mean": 3971.078982556757,
-    "se": 1760.029954489919,
-    "ci95": [
-     521.4202717565163,
-     7420.737693356998
-    ],
-    "median": 1708.3221131135933,
-    "win_rate": 0.742,
-    "significant": true
-   }
-  },
-  {
-   "n_fills": {
-    "label": "n_fills",
-    "unit": "",
-    "mean": -200.69,
-    "se": 0.7940837096148942,
-    "ci95": [
-     -202.2464040708452,
-     -199.1335959291548
-    ],
-    "median": -201.0,
-    "win_rate": 0.0,
-    "significant": true
+  "as": {
+   "name": "Avellaneda-Stoikov",
+   "mean": {
+    "final_pnl": -1937.5301401687111,
+    "pnl_std": 195.78202303208917,
+    "t_stat": 0.040371743297002396,
+    "max_drawdown": -25206.270680319063,
+    "inventory_std": 41.95267720571486,
+    "max_abs_inventory": 98.96,
+    "n_fills": 352.33,
+    "n_crossed": 0.0
+   },
+   "se": {
+    "final_pnl": 1449.839677328538,
+    "pnl_std": 17.59764780159989,
+    "t_stat": 0.04131284050993529,
+    "max_drawdown": 2571.8842896522556,
+    "inventory_std": 0.3845617517642972,
+    "max_abs_inventory": 0.18629603437767991,
+    "n_fills": 0.8712981814752536,
+    "n_crossed": 0.0
    }
   }
- ]
+ },
+ "comparisons": {
+  "spread_matched_vs_fixed": {
+   "a": "spread_matched",
+   "b": "fixed",
+   "question": "spread effect: symmetric quotes at the model spread vs the benchmark",
+   "orientation": "positive = a better",
+   "metrics": {
+    "final_pnl": {
+     "label": "final_pnl",
+     "unit": "",
+     "n": 500,
+     "mean": -124.70985479508806,
+     "se": 2067.52980601846,
+     "ci95": [
+      -4177.068274591269,
+      3927.648565001093
+     ],
+     "median": 325.15608910571643,
+     "win_rate": 0.518,
+     "significant": false
+    },
+    "t_stat": {
+     "label": "t_stat",
+     "unit": "",
+     "n": 500,
+     "mean": 0.04701509266029899,
+     "se": 0.031954254126795624,
+     "ci95": [
+      -0.015615245428220431,
+      0.10964543074881841
+     ],
+     "median": 0.01259969791677884,
+     "win_rate": 0.512,
+     "significant": false
+    },
+    "inventory_std": {
+     "label": "inventory_std",
+     "unit": "",
+     "n": 500,
+     "mean": 6.132634068420276,
+     "se": 0.43418268221478873,
+     "ci95": [
+      5.28163601127929,
+      6.983632125561262
+     ],
+     "median": 6.008217537825626,
+     "win_rate": 0.732,
+     "significant": true
+    },
+    "max_drawdown": {
+     "label": "max_drawdown",
+     "unit": "",
+     "n": 500,
+     "mean": 1993.6759255543643,
+     "se": 2286.603762899527,
+     "ci95": [
+      -2488.0674497287077,
+      6475.419300837437
+     ],
+     "median": 402.8673734438985,
+     "win_rate": 0.57,
+     "significant": false
+    },
+    "n_fills": {
+     "label": "n_fills",
+     "unit": "",
+     "n": 500,
+     "mean": -208.45,
+     "se": 0.8228786414271754,
+     "ci95": [
+      -210.06284213719726,
+      -206.8371578628027
+     ],
+     "median": -208.0,
+     "win_rate": 0.0,
+     "significant": true
+    }
+   }
+  },
+  "skew_only_vs_fixed": {
+   "a": "skew_only",
+   "b": "fixed",
+   "question": "skew effect at the benchmark spread",
+   "orientation": "positive = a better",
+   "metrics": {
+    "final_pnl": {
+     "label": "final_pnl",
+     "unit": "",
+     "n": 500,
+     "mean": -42.72091029708431,
+     "se": 401.1806846993295,
+     "ci95": [
+      -829.0350523077701,
+      743.5932317136015
+     ],
+     "median": 208.39623011558706,
+     "win_rate": 0.536,
+     "significant": false
+    },
+    "t_stat": {
+     "label": "t_stat",
+     "unit": "",
+     "n": 500,
+     "mean": 0.01827329339211593,
+     "se": 0.015608233404994813,
+     "ci95": [
+      -0.012318844081673903,
+      0.048865430865905765
+     ],
+     "median": 0.011009144668511661,
+     "win_rate": 0.518,
+     "significant": false
+    },
+    "inventory_std": {
+     "label": "inventory_std",
+     "unit": "",
+     "n": 500,
+     "mean": 4.401763061225137,
+     "se": 0.21274056353624615,
+     "ci95": [
+      3.9847915566940943,
+      4.818734565756179
+     ],
+     "median": 4.3368756598412865,
+     "win_rate": 0.854,
+     "significant": true
+    },
+    "max_drawdown": {
+     "label": "max_drawdown",
+     "unit": "",
+     "n": 500,
+     "mean": 2840.4012318623904,
+     "se": 313.50419141617624,
+     "ci95": [
+      2225.933016686685,
+      3454.869447038096
+     ],
+     "median": 1382.3658127637368,
+     "win_rate": 0.828,
+     "significant": true
+    },
+    "n_fills": {
+     "label": "n_fills",
+     "unit": "",
+     "n": 500,
+     "mean": 13.564,
+     "se": 0.3609215104054435,
+     "ci95": [
+      12.856593839605331,
+      14.271406160394669
+     ],
+     "median": 14.0,
+     "win_rate": 0.96,
+     "significant": true
+    }
+   }
+  },
+  "as_vs_fixed": {
+   "a": "as",
+   "b": "fixed",
+   "question": "full model (skew + model spread) vs the benchmark",
+   "orientation": "positive = a better",
+   "metrics": {
+    "final_pnl": {
+     "label": "final_pnl",
+     "unit": "",
+     "n": 500,
+     "mean": -514.891770409924,
+     "se": 1775.2653315944997,
+     "ci95": [
+      -3994.411820335143,
+      2964.628279515295
+     ],
+     "median": 289.4144736911563,
+     "win_rate": 0.54,
+     "significant": false
+    },
+    "t_stat": {
+     "label": "t_stat",
+     "unit": "",
+     "n": 500,
+     "mean": 0.05226776480886905,
+     "se": 0.03074598638651616,
+     "ci95": [
+      -0.007994368508702623,
+      0.11252989812644072
+     ],
+     "median": 0.039923571347651204,
+     "win_rate": 0.526,
+     "significant": false
+    },
+    "inventory_std": {
+     "label": "inventory_std",
+     "unit": "",
+     "n": 500,
+     "mean": 8.592552725196986,
+     "se": 0.38873464486745374,
+     "ci95": [
+      7.830632821256777,
+      9.354472629137195
+     ],
+     "median": 8.61355701240328,
+     "win_rate": 0.854,
+     "significant": true
+    },
+    "max_drawdown": {
+     "label": "max_drawdown",
+     "unit": "",
+     "n": 500,
+     "mean": 3971.0789825567576,
+     "se": 1760.0299544899194,
+     "ci95": [
+      521.4202717565158,
+      7420.737693356999
+     ],
+     "median": 1708.3221131135933,
+     "win_rate": 0.742,
+     "significant": true
+    },
+    "n_fills": {
+     "label": "n_fills",
+     "unit": "",
+     "n": 500,
+     "mean": -200.69,
+     "se": 0.7940837096148942,
+     "ci95": [
+      -202.2464040708452,
+      -199.1335959291548
+     ],
+     "median": -201.0,
+     "win_rate": 0.0,
+     "significant": true
+    }
+   }
+  },
+  "as_vs_spread_matched": {
+   "a": "as",
+   "b": "spread_matched",
+   "question": "skew effect at the model spread (isolates the skew)",
+   "orientation": "positive = a better",
+   "metrics": {
+    "final_pnl": {
+     "label": "final_pnl",
+     "unit": "",
+     "n": 500,
+     "mean": -390.18191561483593,
+     "se": 520.7804262768393,
+     "ci95": [
+      -1410.911551117441,
+      630.5477198877691
+     ],
+     "median": -16.78223530317024,
+     "win_rate": 0.5,
+     "significant": false
+    },
+    "t_stat": {
+     "label": "t_stat",
+     "unit": "",
+     "n": 500,
+     "mean": 0.0052526721485700615,
+     "se": 0.014508890937683414,
+     "ci95": [
+      -0.02318475408928943,
+      0.03369009838642955
+     ],
+     "median": 0.004564060335520735,
+     "win_rate": 0.508,
+     "significant": false
+    },
+    "inventory_std": {
+     "label": "inventory_std",
+     "unit": "",
+     "n": 500,
+     "mean": 2.459918656776713,
+     "se": 0.2068460426824389,
+     "ci95": [
+      2.0545004131191327,
+      2.8653369004342935
+     ],
+     "median": 2.288860263889813,
+     "win_rate": 0.706,
+     "significant": true
+    },
+    "max_drawdown": {
+     "label": "max_drawdown",
+     "unit": "",
+     "n": 500,
+     "mean": 1977.403057002393,
+     "se": 669.4920349235628,
+     "ci95": [
+      665.1986685522102,
+      3289.607445452576
+     ],
+     "median": 959.0257677651716,
+     "win_rate": 0.794,
+     "significant": true
+    },
+    "n_fills": {
+     "label": "n_fills",
+     "unit": "",
+     "n": 500,
+     "mean": 7.76,
+     "se": 0.2894760659978146,
+     "ci95": [
+      7.192626910644283,
+      8.327373089355717
+     ],
+     "median": 7.0,
+     "win_rate": 0.89,
+     "significant": true
+    }
+   }
+  }
+ },
+ "notes": {
+  "t_stat": "mean(step pnl)/std(step pnl)*sqrt(n_steps); the whole-horizon Sharpe, not annualised",
+  "max_drawdown": "<= 0; a positive difference means a shallower drawdown for arm a",
+  "quote_crossings": "ticks on which a raw quote crossed the mid and was clamped to it (market_maker.MarketMaker.step)"
+ }
 }
