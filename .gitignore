@@ -5,4 +5,8 @@ __pycache__/
 ci.log
 # audit scratch
 _*.py
+
+# --gamma runs write their own artifacts; only the headline ones are tracked
+results_gamma_*.json
+results_seeds_gamma_*.csv
 .venv/
