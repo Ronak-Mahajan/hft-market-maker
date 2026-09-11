@@ -231,7 +231,7 @@ def main() -> None:
                                            "win_rate": float((mdd_b > mdd_a).mean())},
         },
     }
-    with open(args.json, "w") as f:
+    with open(args.json, "w", newline="\n") as f:
         json.dump(out, f, indent=1)
     print(f"\nwrote {args.json}")
 
