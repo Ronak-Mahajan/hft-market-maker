@@ -47,7 +47,7 @@ Outputs
 
 Usage:
     python evaluate.py --seeds 500                  # headline artifacts
-    python evaluate.py --seeds 500 --gamma 2.0      # results_gamma_2.0.json,
+    python evaluate.py --seeds 500 --gamma 2.0      # results_gamma_2.json,
                                                     # never overwrites results.json
     python evaluate.py --seeds 100 --gamma-sweep    # default grid
     python evaluate.py --seeds 100 --gamma-sweep 0.1,0.5,2
@@ -206,8 +206,11 @@ def build_report(cfg: Config, rows, n_seeds: int) -> dict:
 
 
 def write_seeds_csv(path: str, rows) -> None:
+    # LF line endings on every platform (the csv default is CRLF, and text
+    # mode would translate on Windows) so a local run and the Linux CI run
+    # produce byte-identical artifacts.
     with open(path, "w", newline="") as f:
-        w = csv.writer(f)
+        w = csv.writer(f, lineterminator="\n")
         w.writerow(["seed", "arm"] + [c for c, _ in CSV_COLUMNS])
         for seed, slug, m in rows:
             w.writerow([seed, slug] + [repr(float(m[k])) for _, k in CSV_COLUMNS])
@@ -322,7 +325,7 @@ def main() -> None:
         grid = parse_grid(args.gamma_sweep)
         sw = sweep(Config(), range(args.seeds), grid)
         print_sweep(sw)
-        with open(args.sweep_json, "w") as f:
+        with open(args.sweep_json, "w", newline="\n") as f:
             json.dump(sw, f, indent=1)
         print(f"\nwrote {args.sweep_json}  ({time.perf_counter() - t0:.0f} s)")
         return
@@ -335,7 +338,7 @@ def main() -> None:
     rows = evaluate(cfg, range(args.seeds))
     rep = build_report(cfg, rows, args.seeds)
     print_report(rep)
-    with open(json_path, "w") as f:
+    with open(json_path, "w", newline="\n") as f:
         json.dump(rep, f, indent=1)
     write_seeds_csv(csv_path, rows)
     print(f"\nwrote {json_path} and {csv_path}  "
