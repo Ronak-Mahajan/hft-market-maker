@@ -177,6 +177,28 @@ def test_quote_crossing_guard_clamps_and_counts():
         assert run(S(CFG), m).n_crossed == 0
 
 
+def test_crossing_guard_caps_the_fill_price_not_the_probability():
+    """The guard is a PRICE cap, not a probability cap. On a crossing side the
+    fill probability has already clipped to 1, and clamping to the mid leaves it
+    there; what changes is that the trade prints at fair value instead of
+    through it. With gamma = 10 and q = +100 the raw ask is ~99.67 against a mid
+    of 100, so an arriving buyer would otherwise lift our offer BELOW fair value
+    -- a certain loss. This pins the claim made in MarketMaker's docstring and in
+    the README's Guard rails section."""
+    cfg = Config(n_ticks=10, risk_aversion=10.0)
+    s = AvellanedaStoikovMaker(cfg)
+    s.inventory = 100
+    _raw_bid, raw_ask = s.quote(100.0, 0)
+    assert raw_ask < 100.0, "this regime must cross for the test to mean anything"
+    # a draw of 0.999999 fills only because p is still exactly 1.0 after clamping
+    s.step(100.0, 0, True, 1, 0.999999)
+    assert s.n_crossed == 1 and s.fills[0] == -1
+    assert s.fill_prices[0] == pytest.approx(100.0)      # fair value, not raw_ask
+    assert s.fill_prices[0] > raw_ask                    # the edge the guard saved
+    assert s.cash == pytest.approx(100.0 * cfg.order_size)
+    assert s.inventory == 100 - cfg.order_size
+
+
 # --- accounting -------------------------------------------------------------
 
 def test_pnl_accounting_round_trip_captures_the_spread():

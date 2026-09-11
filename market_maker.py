@@ -154,11 +154,16 @@ class MarketMaker:
     step() applies a quote-crossing guard: if a subclass's raw quote puts the
     bid above the mid or the ask below it (a large gamma or sigma can push the
     reservation-price lean past the half-spread), the crossing side is clamped
-    to the mid and the event is counted in n_crossed. Without the guard the
-    fill probability on that side clips to 1.0 and the maker gives away edge
-    with certainty; with it the maker quotes at fair value on that side, which
-    is the most aggressive quote a passive maker can post here. quote() itself
-    is left raw so the model formulas can be tested directly."""
+    to the mid and the event is counted in n_crossed.
+
+    What the guard does, precisely: on a crossing side the fill probability has
+    ALREADY clipped to 1.0, and the clamp does not change that. What it caps is
+    the fill PRICE, at fair value. Unclamped, the maker buys above the mid (or
+    sells below it) and gives away edge with certainty; clamped, the trade
+    prints at the mid, which is the most aggressive quote a passive maker can
+    post here. See test_crossing_guard_caps_the_fill_price_not_the_probability.
+
+    quote() itself is left raw so the model formulas can be tested directly."""
 
     name = "base"
     slug = "base"

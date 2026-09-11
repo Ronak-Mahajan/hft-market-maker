@@ -16,7 +16,11 @@ permissions:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # The whole job is ~1 minute of compute (pytest 2 s, evaluate --seeds 500
+    # 21 s, the 100-seed gamma sweep 23 s, audit --seeds 200 4 s, measured), so
+    # this cap asserts the ten-minute budget the README claims rather than
+    # merely allowing it.
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,7 +35,10 @@ jobs:
         run: |
           set -o pipefail
           python -m pip install --upgrade pip 2>&1 | tee -a ci.log
-          python -m pip install numpy pytest 2>&1 | tee -a ci.log
+          # Install the way the README tells a reader to, so that command is
+          # exercised on every run rather than only the two packages the code
+          # actually imports.
+          python -m pip install -r requirements.txt 2>&1 | tee -a ci.log
           python -c "import numpy, pytest; print('numpy', numpy.__version__, 'pytest', pytest.__version__)" 2>&1 | tee -a ci.log
 
       - name: Tests

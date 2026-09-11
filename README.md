@@ -9,7 +9,7 @@ pip install -r requirements.txt
 python evaluate.py --seeds 500        # four paired arms -> results.json, results_seeds.csv
 python evaluate.py --seeds 100 --gamma-sweep   # -> results_sweep.json
 python audit.py --seeds 200           # the OLD notebook model, paired -> audit_results.json
-python -m pytest -q                   # 18 tests
+python -m pytest -q                   # 19 tests
 ```
 
 ## The problem
@@ -150,23 +150,32 @@ reduces risk and does not demonstrably change profit.
 ### The answer depends on γ
 
 `evaluate.py --seeds 100 --gamma-sweep` → `results_sweep.json`, inventory-σ
-differences on a 100-seed paired grid:
+differences on a 100-seed paired grid. The last two columns are per-arm crossing
+counts — mean ticks per 10,000-tick seed on which a raw quote crossed the mid and
+the guard clamped it — and they are reported separately because the two skewing
+arms cross at very different γ: `skew_only` applies the same lean around a
+half-spread about half as wide, so it crosses first.
 
-| γ | model spread | spread effect | skew effect (at the model spread) | total | quote crossings |
-|---|---|---|---|---|---|
-| 0.05 | 0.200 | 7.85 | 0.21 (not sig.) | 8.06 | 0 |
-| 0.1 | 0.199 | 7.87 | 0.16 (not sig.) | 8.03 | 0 |
-| 0.2 | 0.198 | 7.80 | 0.57 | 8.37 | 0 |
-| 0.5 | 0.195 | 7.58 | 2.41 | 9.99 | 0 |
-| 1.0 | 0.191 | 7.32 | 5.44 | 12.76 | 0 |
-| 2.0 | 0.183 | 6.60 | 11.35 | 17.95 | 0 |
-| 5.0 | 0.164 | 5.50 | 20.14 | 25.64 | 17.5 |
+| γ | model spread | spread effect | skew effect (at the model spread) | total | crossings `as` | crossings `skew_only` |
+|---|---|---|---|---|---|---|
+| 0.05 | 0.200 | 7.85 | 0.21 (not sig.) | 8.06 | 0 | 0 |
+| 0.1 | 0.199 | 7.87 | 0.16 (not sig.) | 8.03 | 0 | 0 |
+| 0.2 | 0.198 | 7.80 | 0.57 | 8.37 | 0 | 0 |
+| 0.5 | 0.195 | 7.58 | 2.41 | 9.99 | 0 | 0 |
+| 1.0 | 0.191 | 7.32 | 5.44 | 12.76 | 0 | 0 |
+| 2.0 | 0.183 | 6.60 | 11.35 | 17.95 | 0 | 17.4 |
+| 5.0 | 0.164 | 5.50 | 20.14 | 25.64 | 17.5 | 438.1 |
 
 The spread effect is nearly flat because the model spread barely moves over two
 decades of γ. The skew effect is **indistinguishable from zero at γ ≤ 0.1** and
-becomes the whole story by γ = 5, where the reservation lean starts crossing the
-mid and the guard clamps about 17.5 ticks per seed. So "does the skew pay" has
-no γ-free answer; γ = 0.5 is the repo's default and the number quoted above.
+becomes the whole story by γ = 5 — but by then part of what is being measured is
+the guard, not the model: the reservation lean has outgrown the half-spread, so
+the `as` arm is clamped to the mid on ~17.5 ticks per seed and `skew_only` on
+~438 of its 10,000. **No arm crosses the mid anywhere at γ ≤ 1**, so those rows
+are the clean ones; the γ ≥ 2 rows are published because a sweep should show
+where a model stops behaving like the model, not because they are a better
+setting. So "does the skew pay" has no γ-free answer; γ = 0.5 is the repo's
+default and the number quoted above.
 
 **The 17% / 14% / 36% headline is also quoted in the profile README and in the
 `quoter.py` docstring of neural-options-lab. Those three numbers are unchanged
@@ -230,10 +239,13 @@ claims are limited to what the code does and the experiment shows.
 
 - **Quote-crossing guard.** A large `γ` or `σ` pushes the reservation lean past
   the half-spread, so the raw bid sits above the mid (or the ask below it) and
-  the fill probability on that side clips to 1. `MarketMaker.step` clamps the
-  crossing side to the mid and counts the event; `quote_crossings` is reported
-  per arm and per seed. It is zero at the defaults and non-zero at the top of
-  the γ grid.
+  the maker would buy above fair value — a certain loss on that side, because
+  the fill probability there has already clipped to 1. `MarketMaker.step` clamps
+  the crossing side to the mid and counts the event. Note what the clamp does
+  and does not do: it caps the fill **price** at fair value, and it leaves the
+  probability at 1 on that side. `quote_crossings` is reported per arm and per
+  seed; it is zero for all four arms at the defaults and at every γ ≤ 1 of the
+  sweep, and non-zero above that.
 - **`t_stat`, not "Sharpe".** `mean(step P&L) / std(step P&L) · √n` is the
   whole-horizon Sharpe, numerically the t-statistic of the mean step P&L. It is
   not annualised; it was previously labelled `sharpe`.
@@ -241,7 +253,11 @@ claims are limited to what the code does and the experiment shows.
   `results_gamma_<g>.json` and `results_seeds_gamma_<g>.csv`.
 - **Inventory cap.** All arms cap `|q|` at 100 (`max_inventory`), which is itself
   a crude inventory control that makes the benchmark safer than a true
-  unconstrained symmetric quoter. The tests lift it where it would interfere.
+  unconstrained symmetric quoter — and it binds hard. The `max_abs_inventory`
+  column of `results_seeds.csv` touches the cap on 100% of seeds for `fixed`,
+  99.2% for `skew_only`, 98.0% for `spread_matched` and 92.6% for `as`, so part
+  of what every arm is measured against is a position limit rather than a
+  quoting rule. The tests lift it where it would interfere.
 
 ## Limitations
 
@@ -265,9 +281,9 @@ claims are limited to what the code does and the experiment shows.
 market_maker.py        Config, market draw, the four strategies, run(), metrics()
 evaluate.py            paired four-arm evaluation, gamma sweep, per-seed CSV, schema-v2 JSON
 audit.py               paired multi-seed replay of the OLD notebook model
-test_market_maker.py   18 tests: CRN fill-subset property, P&L accounting from the
-                       fill record, closed-form spread, skew units, crossing guard,
-                       results schema
+test_market_maker.py   19 tests: CRN fill-subset property, P&L accounting from the
+                       fill record, closed-form spread, skew units, crossing guard
+                       (clamp, count, and price cap), results schema
 results.json           per-arm means and every pairwise comparison (regenerated by CI)
 results_seeds.csv      one row per (seed, arm)                     (regenerated by CI)
 results_sweep.json     the same summaries on a gamma grid, 100 seeds (regenerated by CI)
