@@ -1,6 +1,8 @@
 venv/
 .ipynb_checkpoints/
 __pycache__/
+.pytest_cache/
 ci.log
 # audit scratch
 _*.py
+.venv/

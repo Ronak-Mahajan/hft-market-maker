@@ -1,0 +1,95 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+      - honest-decomposition
+      - 'rebuild/**'
+      - 'fix/**'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pip install --upgrade pip 2>&1 | tee -a ci.log
+          python -m pip install numpy pytest 2>&1 | tee -a ci.log
+          python -c "import numpy, pytest; print('numpy', numpy.__version__, 'pytest', pytest.__version__)" 2>&1 | tee -a ci.log
+
+      - name: Tests
+        shell: bash
+        run: |
+          python -m pytest -q 2>&1 | tee -a ci.log; exit ${PIPESTATUS[0]}
+
+      - name: Evaluate (500 paired seeds, four arms)
+        shell: bash
+        run: |
+          echo "== evaluate.py --seeds 500 :: $(date -u +%FT%TZ)" | tee -a ci.log
+          python evaluate.py --seeds 500 2>&1 | tee -a ci.log; exit ${PIPESTATUS[0]}
+
+      - name: Gamma sweep (100 paired seeds)
+        shell: bash
+        run: |
+          echo "== evaluate.py --seeds 100 --gamma-sweep :: $(date -u +%FT%TZ)" | tee -a ci.log
+          python evaluate.py --seeds 100 --gamma-sweep 2>&1 | tee -a ci.log; exit ${PIPESTATUS[0]}
+
+      - name: Audit the old notebook model (200 paired seeds)
+        shell: bash
+        run: |
+          echo "== audit.py --seeds 200 :: $(date -u +%FT%TZ)" | tee -a ci.log
+          python audit.py --seeds 200 2>&1 | tee -a ci.log; rc=${PIPESTATUS[0]}
+          echo "== done :: $(date -u +%FT%TZ)" | tee -a ci.log
+          exit $rc
+
+      - name: Commit regenerated results to this branch
+        if: success() && github.event_name == 'push' && github.ref != 'refs/heads/main'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results.json results_seeds.csv results_sweep.json audit_results.json
+          if git diff --cached --quiet; then
+            echo "results unchanged; nothing to commit"
+            exit 0
+          fi
+          git commit -m "ci: regenerate results (${GITHUB_SHA::7}) [skip ci]" \
+            -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+          git stash push --include-untracked -q || true
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin HEAD:"$GITHUB_REF_NAME"
+
+      - name: Save failure log to the branch
+        if: failure() && github.ref != 'refs/heads/main'
+        shell: bash
+        run: |
+          mkdir -p .ci
+          if [ -f ci.log ]; then
+            tail -c 60000 ci.log > .ci/last-failure-ci.log
+          else
+            echo "no ci.log captured" > .ci/last-failure-ci.log
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .ci/last-failure-ci.log
+          git commit -m "ci: failure log [skip ci]" || exit 0
+          git stash push --include-untracked -q || true
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin HEAD:"$GITHUB_REF_NAME"
