@@ -1,4 +1,4 @@
-# Inventory-Aware Market Making: does Avellaneda–Stoikov actually pay, and which half of it?
+# Inventory-Aware Market Making: does Avellaneda-Stoikov actually pay, and which half of it?
 
 An event-driven backtester for a single market maker quoting a two-sided book
 against Poisson order flow, built to answer one question: **does skewing quotes
@@ -8,7 +8,7 @@ against your inventory measurably reduce risk, and what does it cost?**
 pip install -r requirements.txt
 python evaluate.py --seeds 500        # four paired arms -> results.json, results_seeds.csv
 python evaluate.py --seeds 100 --gamma-sweep   # -> results_sweep.json
-python audit.py --seeds 200           # the OLD notebook model, paired -> audit_results.json
+python audit.py --seeds 200           # paired replay of the simpler rule -> audit_results.json
 python -m pytest -q                   # 19 tests
 ```
 
@@ -21,19 +21,19 @@ were never paid to take. Avellaneda & Stoikov (2008) prescribe quoting around a
 model derives rather than one you pick:
 
 ```
-reservation price   r = s − q·γ·σ²·(T − t)
-optimal half-spread d = ½[ γσ²(T − t) + (2/γ)·ln(1 + γ/κ) ]
+reservation price   r = s − q*γ*σ²*(T − t)
+optimal half-spread d = ½[ γσ²(T − t) + (2/γ)*ln(1 + γ/κ) ]
 bid = r − d,   ask = r + d
 ```
 
 Both terms carry `(T − t)`: aversion to inventory decays to zero at the terminal
 time, because there is no longer any horizon over which a position can move
-against you. Fills follow the same paper's execution model, `λ(δ) = A·e^{−κδ}`,
+against you. Fills follow the same paper's execution model, `λ(δ) = A*e^{−κδ}`,
 so quoting further from fair value earns more per fill and gets fewer of them.
 
 ## The decomposition question
 
-Avellaneda–Stoikov changes **two** things relative to a naive symmetric quoter:
+Avellaneda-Stoikov changes **two** things relative to a naive symmetric quoter:
 it skews the quotes around the reservation price, and it sets the spread from
 the model, which at these parameters is about twice the benchmark's hand-picked
 0.10. A two-arm comparison (benchmark vs full model) cannot say which of the two
@@ -66,14 +66,14 @@ fraction of the horizon remaining, `τ = 1 − t/n_ticks ∈ [0, 1]`, so `γσ²
 not the paper's formula in tick units (that would carry `n_ticks − t`) and `γ`
 should be read as a per-horizon risk aversion. The lean is judged on the
 yardstick that governs fills: with `κ = 10` the fill-decay length is
-`1/κ = $0.10`, and the default lean of `100 · 0.5 · 0.02² = $0.02` at maximum
+`1/κ = $0.10`, and the default lean of `100 * 0.5 * 0.02² = $0.02` at maximum
 inventory moves the near-side fill probability from 0.377 to 0.460 and the far
 side to 0.308. That is a material asymmetry, which is why the skew is measured
 rather than dismissed; `--gamma-sweep` shows how the answer moves with `γ`.
 
 ## The result
 
-500 paired seeds (0–499), γ = 0.5, all four arms on the same market draws.
+500 paired seeds (0 to 499), γ = 0.5, all four arms on the same market draws.
 Every number below is read out of `results.json`, which CI regenerates on every
 push to this branch (`.github/workflows/ci.yml` runs `evaluate.py --seeds 500`
 and commits `results.json` and `results_seeds.csv`).
@@ -129,12 +129,12 @@ sum, seed by seed, to the `as − fixed` row.
 **Final P&L and t-stat: nothing is significant in any comparison.**
 `as − fixed` P&L is −515 [−3,994, +2,965] at a 54% win rate; the largest
 t-stat difference is 0.052 [−0.008, 0.113]. P&L here is inventory noise by
-construction (see Limitations), so the honest statement is that the model
-reduces risk and does not demonstrably change profit.
+construction (see Limitations), so the model reduces risk and does not
+demonstrably change profit.
 
 ### What the decomposition actually says
 
-- **The skew is not just "quote less".** At the benchmark's own spread
+- **The skew does not work by taking fewer fills.** At the benchmark's own spread
   (`skew_only`) it takes 2.5% **more** fills than the benchmark while cutting
   inventory σ 8.7% and drawdown 9.7%. Leaning the quotes makes the near side
   more attractive exactly when inventory wants unwinding, and the extra
@@ -149,10 +149,10 @@ reduces risk and does not demonstrably change profit.
 
 ### The answer depends on γ
 
-`evaluate.py --seeds 100 --gamma-sweep` → `results_sweep.json`, inventory-σ
+`evaluate.py --seeds 100 --gamma-sweep` writes `results_sweep.json`: inventory-σ
 differences on a 100-seed paired grid. The last two columns are per-arm crossing
-counts — mean ticks per 10,000-tick seed on which a raw quote crossed the mid and
-the guard clamped it — and they are reported separately because the two skewing
+counts, the mean ticks per 10,000-tick seed on which a raw quote crossed the mid
+and the guard clamped it. They are reported separately because the two skewing
 arms cross at very different γ: `skew_only` applies the same lean around a
 half-spread about half as wide, so it crosses first.
 
@@ -168,7 +168,7 @@ half-spread about half as wide, so it crosses first.
 
 The spread effect is nearly flat because the model spread barely moves over two
 decades of γ. The skew effect is **indistinguishable from zero at γ ≤ 0.1** and
-becomes the whole story by γ = 5 — but by then part of what is being measured is
+becomes the whole story by γ = 5, but by then part of what is being measured is
 the guard, not the model: the reservation lean has outgrown the half-spread, so
 the `as` arm is clamped to the mid on ~17.5 ticks per seed and `skew_only` on
 ~438 of its 10,000. **No arm crosses the mid anywhere at γ ≤ 1**, so those rows
@@ -177,11 +177,10 @@ where a model stops behaving like the model, not because they are a better
 setting. So "does the skew pay" has no γ-free answer; γ = 0.5 is the repo's
 default and the number quoted above.
 
-**The 17% / 14% / 36% headline is also quoted in the profile README and in the
-`quoter.py` docstring of neural-options-lab. Those three numbers are unchanged
-by the four-arm rerun — they are the `as − fixed` row — but they should name
-the arm, because the decomposition shows 12.1 of the 17 points come from
-quoting wider rather than from the inventory skew.**
+**The 17% / 14% / 36% figures quoted in the profile README and in the
+`quoter.py` docstring of neural-options-lab are the `as − fixed` row: the full
+model against the benchmark. The decomposition puts 12.1 of those 17
+inventory-σ points on the wider spread and 4.9 on the inventory skew.**
 
 Per-arm means and every pairwise comparison live in `results.json` (schema v2:
 `arms` keyed by arm, `comparisons` keyed by comparison then by metric). The raw
@@ -196,27 +195,10 @@ the ten-minute budget, so the headline artifacts are always the full 500 seeds.
 
 ## Why the evaluation is built this way
 
-An earlier version of this project reported a **single seed** — a $22,322 loss
-turned into a $7,336 profit, quoted as a "+132% improvement". That number
-reproduces from `simulation.ipynb`. It is also meaningless on its own: a single
-path of a 10,000-tick GBM with Poisson fills carries enormous terminal variance,
-so a one-seed comparison measures the seed rather than the strategy. The
-multi-seed replay that first showed this (the earlier "−412% to +462%,
-benchmark profitable 44% of the time" figures) was produced by a scratch script
-that was deleted from the tree and that drew the two strategies' fill luck from
-*different* random streams. It is restored as `audit.py`, now **paired**, and
-documented as an audit of the old notebook model (fixed 0.10 spread, skew
-−q·γ·σ² with no horizon term) rather than of the current strategies. CI runs
-it and commits `audit_results.json`; on 200 paired seeds the old model's
-per-seed "improvement" still ranges from −229% to +179% (median +4.2%), the
-paired P&L difference is +138 [−1,847, +2,123] at a 51% win rate, and the
-benchmark is profitable on 49% of seeds against the old skewer's 46.5%. The
-old model's risk numbers do hold up under pairing — median inventory-σ
-reduction 18.8% (94.5% of seeds) and median drawdown reduction 21.8% (90%) —
-which is the same shape as the current result and the reason the notebook's
-single-seed "+132%" was never the evidence it was presented as.
-
-Two changes make the difference resolvable:
+A single seed cannot separate a strategy from its luck. One path of a
+10,000-tick GBM with Poisson fills carries enormous terminal variance, so a
+one-seed comparison measures the seed. Two choices make the difference
+resolvable:
 
 1. **Common random numbers.** Fill draws are generated with the market, not
    inside the strategy loop, so every maker faces identical luck. A quote that
@@ -227,33 +209,37 @@ Two changes make the difference resolvable:
    seeds with a 95% confidence interval and a win rate, and the per-seed arrays
    are committed.
 
-The earlier version also described features it did not implement — queue-position
-dependent fills, a terminal-utility objective, quadratic inventory penalties, and
-risk aversion adapting to realised volatility. None of those existed in the code;
-the reservation price had no `(T − t)` term and the spread was hand-picked rather
-than derived. The model is now implemented as specified, the old design survives
-as the `skew_only` arm because it is the cleanest test of the skew, and the
-claims are limited to what the code does and the experiment shows.
+The same treatment is applied to the simpler quoting rule that `simulation.ipynb`
+explores: a fixed 0.10 spread with a skew of `−q*γ*σ²` and no horizon term.
+`audit.py` replays it against the benchmark on 200 paired seeds and CI commits
+`audit_results.json`. Its per-seed P&L "improvement" ranges from −229% to +179%
+(median +4.2%), the paired P&L difference is +138 [−1,847, +2,123] at a 51% win
+rate, and the benchmark is profitable on 49% of seeds against the skewer's
+46.5%, so profit is not resolvable there either. The risk numbers do hold up
+under pairing, with a median inventory-σ reduction of 18.8% (94.5% of seeds) and
+a median drawdown reduction of 21.8% (90%), the same shape as the four-arm
+result. That rule survives in the main experiment as the `skew_only` arm, which
+is the cleanest test of the skew on its own.
 
 ## Guard rails
 
 - **Quote-crossing guard.** A large `γ` or `σ` pushes the reservation lean past
   the half-spread, so the raw bid sits above the mid (or the ask below it) and
-  the maker would buy above fair value — a certain loss on that side, because
+  the maker would buy above fair value, a certain loss on that side, because
   the fill probability there has already clipped to 1. `MarketMaker.step` clamps
   the crossing side to the mid and counts the event. Note what the clamp does
   and does not do: it caps the fill **price** at fair value, and it leaves the
   probability at 1 on that side. `quote_crossings` is reported per arm and per
   seed; it is zero for all four arms at the defaults and at every γ ≤ 1 of the
   sweep, and non-zero above that.
-- **`t_stat`, not "Sharpe".** `mean(step P&L) / std(step P&L) · √n` is the
+- **`t_stat`, not "Sharpe".** `mean(step P&L) / std(step P&L) * √n` is the
   whole-horizon Sharpe, numerically the t-statistic of the mean step P&L. It is
-  not annualised; it was previously labelled `sharpe`.
+  not annualised, and it is not comparable to an annualised Sharpe ratio.
 - **`--gamma` never overwrites the headline.** A `--gamma g` run writes
   `results_gamma_<g>.json` and `results_seeds_gamma_<g>.csv`.
 - **Inventory cap.** All arms cap `|q|` at 100 (`max_inventory`), which is itself
   a crude inventory control that makes the benchmark safer than a true
-  unconstrained symmetric quoter — and it binds hard. The `max_abs_inventory`
+  unconstrained symmetric quoter, and it binds hard. The `max_abs_inventory`
   column of `results_seeds.csv` touches the cap on 100% of seeds for `fixed`,
   99.2% for `skew_only`, 98.0% for `spread_matched` and 92.6% for `as`, so part
   of what every arm is measured against is a position limit rather than a
@@ -272,15 +258,15 @@ claims are limited to what the code does and the experiment shows.
   significant. Rescaling the regime is deliberately not done here, because it
   would change every published number at once; it is the next study.
 - One asset, one maker, no latency, no fees.
-- `simulation.ipynb` still implements and plots the old model; its figures are
-  not of the current strategies.
+- `simulation.ipynb` implements and plots the simpler rule audited by `audit.py`,
+  not the four arms; its figures are not of the current strategies.
 
 ## Layout
 
 ```
 market_maker.py        Config, market draw, the four strategies, run(), metrics()
 evaluate.py            paired four-arm evaluation, gamma sweep, per-seed CSV, schema-v2 JSON
-audit.py               paired multi-seed replay of the OLD notebook model
+audit.py               paired multi-seed replay of the simpler skew rule
 test_market_maker.py   19 tests: CRN fill-subset property, P&L accounting from the
                        fill record, closed-form spread, skew units, crossing guard
                        (clamp, count, and price cap), results schema
@@ -288,5 +274,5 @@ results.json           per-arm means and every pairwise comparison (regenerated 
 results_seeds.csv      one row per (seed, arm)                     (regenerated by CI)
 results_sweep.json     the same summaries on a gamma grid, 100 seeds (regenerated by CI)
 audit_results.json     audit.py output                             (regenerated by CI)
-simulation.ipynb       original exploratory notebook, old model, kept for provenance
+simulation.ipynb       exploratory notebook for the simpler rule and its plots
 ```
