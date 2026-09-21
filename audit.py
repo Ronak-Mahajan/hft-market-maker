@@ -17,8 +17,8 @@ model use evaluate.py.
 
 History
 -------
-An earlier version of this script (_audit.py, deleted in commit 250eaa9 and
-restored here from b678220) produced the "-412% to +462%" and "profitable 44%
+An earlier version of this script (_audit.py, deleted in commit d14d408 and
+restored here from 82d857d) produced the "-412% to +462%" and "profitable 44%
 of the time" figures quoted in the README. It drew the two strategies' fill
 uniforms from DIFFERENT RNG streams (default_rng(s) for A and
 default_rng(s + 10**6) for B), so the per-seed difference between the two
