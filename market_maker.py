@@ -83,11 +83,11 @@ class Config:
 
     Validated on construction, which dataclasses.replace repeats: gamma,
     kappa, the order size, the fill scale, dt and the initial price must be
-    positive; volatility, arrival rate, spread and inventory cap must be
-    non-negative; n_ticks is at least 2. A bad value raises ValueError
-    instead of failing mid-run (gamma = 0 divides by zero in the model
-    spread) or silently reversing the skew (gamma < 0 leans the quotes into
-    the position)."""
+    positive; volatility, arrival rate, spread, inventory cap and price floor
+    must be non-negative, and the floor below the initial price; n_ticks is
+    at least 2. A bad value raises ValueError instead of failing mid-run
+    (gamma = 0 divides by zero in the model spread) or silently reversing
+    the skew (gamma < 0 leans the quotes into the position)."""
 
     initial_price: float = 100.0
     drift: float = 0.0001            # mu, per tick
@@ -104,6 +104,7 @@ class Config:
 
     fixed_spread: float = 0.10       # the naive benchmark's hand-picked spread
     risk_aversion: float = 0.5       # gamma
+    min_price: float = 0.01          # price floor: no bid below this
 
     def __post_init__(self) -> None:
         for name in ("order_size", "n_ticks", "max_inventory"):
@@ -112,7 +113,7 @@ class Config:
                 raise ValueError(f"{name} must be an integer, got {value!r}")
         for name in ("initial_price", "drift", "volatility", "dt",
                      "poisson_rate", "kappa", "fill_scale", "fixed_spread",
-                     "risk_aversion"):
+                     "risk_aversion", "min_price"):
             value = getattr(self, name)
             if not math.isfinite(value):
                 raise ValueError(f"{name} must be finite, got {value!r}")
@@ -122,12 +123,15 @@ class Config:
             if value <= 0:
                 raise ValueError(f"{name} must be > 0, got {value!r}")
         for name in ("volatility", "poisson_rate", "fixed_spread",
-                     "max_inventory"):
+                     "max_inventory", "min_price"):
             value = getattr(self, name)
             if value < 0:
                 raise ValueError(f"{name} must be >= 0, got {value!r}")
         if self.n_ticks < 2:
             raise ValueError(f"n_ticks must be >= 2, got {self.n_ticks!r}")
+        if self.min_price >= self.initial_price:
+            raise ValueError(f"min_price ({self.min_price!r}) must be below "
+                             f"initial_price ({self.initial_price!r})")
 
 
 @dataclass
@@ -196,6 +200,15 @@ class MarketMaker:
     prints at the mid, which is the most aggressive quote a passive maker can
     post here. See test_crossing_guard_caps_the_fill_price_not_the_probability.
 
+    Before the crossing guard, step() applies a price floor: a raw bid below
+    cfg.min_price is raised to it and counted in n_floored. The mid is GBM and
+    never reaches zero, but the model half-spread is a fixed dollar amount
+    (about $0.098 at the defaults), so on a path whose mid falls below it the
+    raw model bid is at or below zero.
+    The ask needs no floor, since the guard keeps it at or above the mid. On
+    a mid below min_price the floored bid would sit above the mid, so the
+    crossing guard puts it back at the mid and counts that too.
+
     quote() itself is left raw so the model formulas can be tested directly."""
 
     name = "base"
@@ -212,6 +225,7 @@ class MarketMaker:
         self.fill_prices = np.zeros(cfg.n_ticks)
         self.n_fills = 0
         self.n_crossed = 0
+        self.n_floored = 0
         self.last_quote: tuple[float, float] = (math.nan, math.nan)
 
     def quote(self, mid: float, t: int) -> tuple[float, float]:
@@ -221,6 +235,9 @@ class MarketMaker:
              draw: float) -> None:
         cfg = self.cfg
         bid, ask = self.quote(mid, t)
+        if bid < cfg.min_price:
+            bid = cfg.min_price
+            self.n_floored += 1
         if bid > mid or ask < mid:
             self.n_crossed += 1
             if bid > mid:
@@ -365,4 +382,5 @@ def metrics(s: MarketMaker) -> dict[str, float]:
         "max_abs_inventory": float(np.abs(s.inv_path).max()),
         "n_fills": float(s.n_fills),
         "n_crossed": float(s.n_crossed),
+        "n_floored": float(s.n_floored),
     }

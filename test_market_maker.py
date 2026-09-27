@@ -200,6 +200,28 @@ def test_crossing_guard_caps_the_fill_price_not_the_probability():
     assert s.inventory == 100 - cfg.order_size
 
 
+def test_price_floor_keeps_bids_at_or_above_min_price():
+    """Seed 37 is the lowest-price path of the published 500 (its mid falls
+    to about $0.08). There the model half-spread of ~$0.098 puts the raw bid
+    of both model-spread arms below zero; the floor raises it to min_price
+    and counts it, so no arm buys below the floor. The benchmark-spread arms
+    quote closer and never reach it."""
+    cfg = Config()
+    m = simulate_market(cfg, 37)
+    floored = {}
+    for S in ARMS:
+        s = run(S(cfg), m)
+        assert np.all(s.fill_prices[s.fills == 1] >= cfg.min_price)
+        floored[S.slug] = s.n_floored
+    assert floored["fixed"] == floored["skew_only"] == 0
+    assert floored["spread_matched"] > 0 and floored["as"] > 0
+    # a mid below the floor: the floor lifts the bid over the mid and the
+    # crossing guard puts it back at the mid; both are counted
+    s = FixedSpreadMaker(Config(n_ticks=2))
+    s.step(0.004, 0, False, 1, 0.5)
+    assert s.last_quote[0] == 0.004 and s.n_floored == 1 and s.n_crossed == 1
+
+
 # --- accounting -------------------------------------------------------------
 
 def test_pnl_accounting_round_trip_captures_the_spread():
@@ -265,7 +287,8 @@ def test_config_rejects_parameters_the_model_cannot_run():
            ("risk_aversion", math.nan), ("kappa", 0.0), ("fill_scale", 0.0),
            ("order_size", 0), ("order_size", 2.5), ("max_inventory", -10),
            ("fixed_spread", -0.1), ("volatility", -0.02),
-           ("initial_price", 0.0), ("n_ticks", 1)]
+           ("initial_price", 0.0), ("n_ticks", 1), ("min_price", -0.01),
+           ("min_price", 100.0)]
     for field, value in bad:
         with pytest.raises(ValueError, match=field):
             Config(**{field: value})

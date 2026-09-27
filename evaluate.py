@@ -97,7 +97,8 @@ CSV_COLUMNS = (("inventory_sigma", "inventory_std"),
                ("final_pnl", "final_pnl"),
                ("t_stat", "t_stat"),
                ("max_abs_inventory", "max_abs_inventory"),
-               ("quote_crossings", "n_crossed"))
+               ("quote_crossings", "n_crossed"),
+               ("floored_bids", "n_floored"))
 
 DEFAULT_GAMMA_GRID = "0.05,0.1,0.2,0.5,1,2,5"
 
@@ -210,6 +211,8 @@ def build_report(cfg: Config, rows, n_seeds: int) -> dict:
                             "drawdown for arm a",
             "quote_crossings": "ticks on which a raw quote crossed the mid and "
                                "was clamped to it (market_maker.MarketMaker.step)",
+            "floored_bids": "ticks on which the raw bid was below "
+                            "Config.min_price and was raised to it",
         },
     }
 

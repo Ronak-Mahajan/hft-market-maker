@@ -14,8 +14,8 @@ What counts as a difference:
 
 - Discrete content must match exactly: JSON structure, keys, list lengths,
   strings, booleans and integers; the win_rate and profitable_share fractions,
-  which count seeds; and the seed, arm, fills, max_abs_inventory and
-  quote_crossings columns of results_seeds.csv.
+  which count seeds; and the seed, arm, fills, max_abs_inventory,
+  quote_crossings and floored_bids columns of results_seeds.csv.
 - Every other float must agree to a relative tolerance of 1e-9. The
   writers round floats to 10 significant digits (evaluate.SIG_DIGITS),
   which absorbs the platform noise in the last bits of exp, log and long
@@ -50,7 +50,7 @@ EXACT_JSON_KEYS = frozenset({"win_rate", "profitable_share"})
 # results_seeds.csv columns holding identifiers or counts: compared exactly,
 # as text.
 EXACT_CSV_COLUMNS = frozenset({"seed", "arm", "fills", "max_abs_inventory",
-                               "quote_crossings"})
+                               "quote_crossings", "floored_bids"})
 
 MAX_REPORTED = 20
 

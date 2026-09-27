@@ -10,7 +10,7 @@ python evaluate.py --seeds 500        # four paired arms -> results.json, result
 python evaluate.py --seeds 100 --gamma-sweep   # -> results_sweep.json
 python audit.py --seeds 200           # paired replay of the simpler rule -> audit_results.json
 python scripts/check_artifacts.py     # regenerated artifacts vs the committed copies
-python -m pytest -q                   # 25 tests
+python -m pytest -q                   # 26 tests
 ```
 
 ## The problem
@@ -189,8 +189,8 @@ Per-arm means and every pairwise comparison live in `results.json` (schema v2:
 `arms` keyed by arm, `comparisons` keyed by comparison then by metric). The raw
 per-seed metrics for every arm are in `results_seeds.csv` (`seed, arm,
 inventory_sigma, max_drawdown, fills, final_pnl, t_stat, max_abs_inventory,
-quote_crossings`), so any number in the tables above can be recomputed from the
-committed artifact.
+quote_crossings, floored_bids`), so any number in the tables above can be
+recomputed from the committed artifact.
 
 The seed count was not reduced for CI: the whole job (tests, the 500-seed
 four-arm run, the 100-seed γ sweep and the 200-seed audit) finishes well inside
@@ -236,6 +236,12 @@ is the cleanest test of the skew on its own.
   probability at 1 on that side. `quote_crossings` is reported per arm and per
   seed; it is zero for all four arms at the defaults and at every γ ≤ 1 of the
   sweep, and non-zero above that.
+- **Price floor.** A raw bid below `min_price` ($0.01) is raised to it. The
+  mid is GBM and never reaches zero, but the model half-spread is a fixed
+  $0.098, so where the mid falls below that the raw model bid is at or below
+  zero. `MarketMaker.step` floors such a bid and counts it in
+  `floored_bids`. Across the 500 seeds it binds on one: seed 37, on 145 ticks
+  for each of the two model-spread arms.
 - **`t_stat`, not "Sharpe".** `mean(step P&L) / std(step P&L) * √n` is the
   whole-horizon Sharpe, numerically the t-statistic of the mean step P&L. It is
   not annualised, and it is not comparable to an annualised Sharpe ratio.
@@ -273,9 +279,10 @@ evaluate.py            paired four-arm evaluation, gamma sweep, per-seed CSV, sc
 audit.py               paired multi-seed replay of the simpler skew rule
 scripts/
   check_artifacts.py   regenerated artifacts vs the committed copies; CI fails on a difference
-test_market_maker.py   21 tests: CRN fill-subset property, P&L accounting from the
+test_market_maker.py   22 tests: CRN fill-subset property, P&L accounting from the
                        fill record, closed-form spread, skew units, crossing guard
-                       (clamp, count, and price cap), results schema
+                       (clamp, count, and price cap), price floor, inventory cap,
+                       config validation, results schema
 test_artifacts.py      4 tests: 10-digit float rounding in the writers, and the
                        tolerance and exact-match rules of check_artifacts.py
 results.json           per-arm means and every pairwise comparison (checked by CI)

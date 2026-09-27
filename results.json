@@ -19,7 +19,8 @@
   "n_ticks": 10000,
   "max_inventory": 100,
   "fixed_spread": 0.1,
-  "risk_aversion": 0.5
+  "risk_aversion": 0.5,
+  "min_price": 0.01
  },
  "arm_names": {
   "fixed": "fixed spread",
@@ -44,7 +45,8 @@
     "inventory_std": 50.54522993,
     "max_abs_inventory": 100.0,
     "n_fills": 553.02,
-    "n_crossed": 0.0
+    "n_crossed": 0.0,
+    "n_floored": 0.0
    },
    "se": {
     "final_pnl": 1913.653889,
@@ -54,30 +56,33 @@
     "inventory_std": 0.4117920494,
     "max_abs_inventory": 0.0,
     "n_fills": 1.209129931,
-    "n_crossed": 0.0
+    "n_crossed": 0.0,
+    "n_floored": 0.0
    }
   },
   "spread_matched": {
    "name": "spread-matched",
    "mean": {
-    "final_pnl": -1547.348225,
+    "final_pnl": -1547.349066,
     "pnl_std": 215.2737304,
-    "t_stat": 0.03511907115,
+    "t_stat": 0.03511844449,
     "max_drawdown": -27183.67374,
     "inventory_std": 44.41259586,
     "max_abs_inventory": 99.74,
     "n_fills": 344.57,
-    "n_crossed": 0.0
+    "n_crossed": 0.0,
+    "n_floored": 0.29
    },
    "se": {
-    "final_pnl": 1503.288567,
+    "final_pnl": 1503.288562,
     "pnl_std": 16.92371833,
-    "t_stat": 0.04071338288,
+    "t_stat": 0.04071332484,
     "max_drawdown": 2405.110861,
     "inventory_std": 0.4773075292,
     "max_abs_inventory": 0.09100199298,
     "n_fills": 0.9170802978,
-    "n_crossed": 0.0
+    "n_crossed": 0.0,
+    "n_floored": 0.29
    }
   },
   "skew_only": {
@@ -90,7 +95,8 @@
     "inventory_std": 46.14346687,
     "max_abs_inventory": 99.92,
     "n_fills": 566.584,
-    "n_crossed": 0.0
+    "n_crossed": 0.0,
+    "n_floored": 0.0
    },
    "se": {
     "final_pnl": 1845.05406,
@@ -100,30 +106,33 @@
     "inventory_std": 0.318059775,
     "max_abs_inventory": 0.03987957825,
     "n_fills": 1.138756964,
-    "n_crossed": 0.0
+    "n_crossed": 0.0,
+    "n_floored": 0.0
    }
   },
   "as": {
    "name": "Avellaneda-Stoikov",
    "mean": {
-    "final_pnl": -1937.53014,
+    "final_pnl": -1937.530975,
     "pnl_std": 195.782023,
-    "t_stat": 0.0403717433,
+    "t_stat": 0.04037106408,
     "max_drawdown": -25206.27068,
     "inventory_std": 41.95267721,
     "max_abs_inventory": 98.96,
     "n_fills": 352.33,
-    "n_crossed": 0.0
+    "n_crossed": 0.0,
+    "n_floored": 0.29
    },
    "se": {
-    "final_pnl": 1449.839677,
+    "final_pnl": 1449.839672,
     "pnl_std": 17.5976478,
-    "t_stat": 0.04131284051,
+    "t_stat": 0.04131277994,
     "max_drawdown": 2571.88429,
     "inventory_std": 0.3845617518,
     "max_abs_inventory": 0.1862960344,
     "n_fills": 0.8712981815,
-    "n_crossed": 0.0
+    "n_crossed": 0.0,
+    "n_floored": 0.29
    }
   }
  },
@@ -138,11 +147,11 @@
      "label": "final_pnl",
      "unit": "",
      "n": 500,
-     "mean": -124.7098548,
-     "se": 2067.529806,
+     "mean": -124.7106967,
+     "se": 2067.529804,
      "ci95": [
-      -4177.068275,
-      3927.648565
+      -4177.069113,
+      3927.647719
      ],
      "median": 325.1560891,
      "win_rate": 0.518,
@@ -152,11 +161,11 @@
      "label": "t_stat",
      "unit": "",
      "n": 500,
-     "mean": 0.04701509266,
-     "se": 0.03195425413,
+     "mean": 0.047014466,
+     "se": 0.03195419195,
      "ci95": [
-      -0.01561524543,
-      0.1096454307
+      -0.01561575021,
+      0.1096446822
      ],
      "median": 0.01259969792,
      "win_rate": 0.512,
@@ -294,11 +303,11 @@
      "label": "final_pnl",
      "unit": "",
      "n": 500,
-     "mean": -514.8917704,
-     "se": 1775.265332,
+     "mean": -514.8926048,
+     "se": 1775.265329,
      "ci95": [
-      -3994.41182,
-      2964.62828
+      -3994.41265,
+      2964.62744
      ],
      "median": 289.4144737,
      "win_rate": 0.54,
@@ -308,11 +317,11 @@
      "label": "t_stat",
      "unit": "",
      "n": 500,
-     "mean": 0.05226776481,
-     "se": 0.03074598639,
+     "mean": 0.05226708559,
+     "se": 0.03074591825,
      "ci95": [
-      -0.007994368509,
-      0.1125298981
+      -0.007994914188,
+      0.1125290854
      ],
      "median": 0.03992357135,
      "win_rate": 0.526,
@@ -372,11 +381,11 @@
      "label": "final_pnl",
      "unit": "",
      "n": 500,
-     "mean": -390.1819156,
+     "mean": -390.1819081,
      "se": 520.7804263,
      "ci95": [
-      -1410.911551,
-      630.5477199
+      -1410.911544,
+      630.5477274
      ],
      "median": -16.7822353,
      "win_rate": 0.5,
@@ -386,11 +395,11 @@
      "label": "t_stat",
      "unit": "",
      "n": 500,
-     "mean": 0.005252672149,
-     "se": 0.01450889094,
+     "mean": 0.005252619585,
+     "se": 0.01450889125,
      "ci95": [
-      -0.02318475409,
-      0.03369009839
+      -0.02318480727,
+      0.03369004644
      ],
      "median": 0.004564060336,
      "win_rate": 0.508,
@@ -444,6 +453,7 @@
  "notes": {
   "t_stat": "mean(step pnl)/std(step pnl)*sqrt(n_steps); the whole-horizon Sharpe, not annualised",
   "max_drawdown": "<= 0; a positive difference means a shallower drawdown for arm a",
-  "quote_crossings": "ticks on which a raw quote crossed the mid and was clamped to it (market_maker.MarketMaker.step)"
+  "quote_crossings": "ticks on which a raw quote crossed the mid and was clamped to it (market_maker.MarketMaker.step)",
+  "floored_bids": "ticks on which the raw bid was below Config.min_price and was raised to it"
  }
 }
