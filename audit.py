@@ -1,33 +1,30 @@
-"""Multi-seed audit of the OLD notebook model (simulation.ipynb), paired.
+"""Paired multi-seed replay of a horizon-free skew rule against the benchmark.
 
-What this audits
-----------------
-The original notebook compared a naive fixed-spread quoter (Strategy A) with an
-"inventory-aware" quoter (Strategy B) that skewed the SAME 0.10 spread by
--q * gamma * sigma^2 with gamma = 0.5 and no (T - t) term, on ONE seed, and
-reported a $22,322 loss turned into a $7,336 profit (+132%). That single-seed
-figure still ships with its code in simulation.ipynb. This script replays the
-notebook's strategy logic across many seeds so the single seed can be placed in
-its distribution.
+The rule
+--------
+Two quoters on the same market, at the market_maker.Config defaults:
 
-This is NOT the model in market_maker.py. The current strategies carry the
-(T - t) term and, in the full Avellaneda-Stoikov arm, the model-derived spread;
-the closest current analogue of Strategy B is SkewOnlyMaker. For the current
-model use evaluate.py.
+    A   symmetric quotes at the hand-picked 0.10 spread (the benchmark)
+    B   the same 0.10 spread around a reservation price r = s - q*gamma*sigma^2,
+        gamma = 0.5, with no (T - t) term, so the lean is the same at every tick
 
-History
+B is the inventory intuition without the model's horizon. market_maker.py's
+SkewOnlyMaker is the same rule with the lean scaled by the time remaining.
+
+Pairing
 -------
-An earlier version of this script (_audit.py, deleted in commit d14d408 and
-restored here from 82d857d) produced the "-412% to +462%" and "profitable 44%
-of the time" figures quoted in the README. It drew the two strategies' fill
-uniforms from DIFFERENT RNG streams (default_rng(s) for A and
-default_rng(s + 10**6) for B), so the per-seed difference between the two
-strategies mixed strategy effect with fill luck. This version is PAIRED: the
-price path, arrivals, directions and per-tick fill uniforms are drawn once per
-seed and both strategies consume the same draws, the same design evaluate.py
-uses. Because the uniforms are now pre-drawn per tick rather than drawn on
-demand, individual seeds (including seed 42) do not reproduce the notebook's
-exact numbers; the distribution is what this script is for.
+The price path, arrivals, directions and per-tick fill uniforms are drawn once
+per seed, in the same order as market_maker.simulate_market, and both quoters
+consume the same draws, so the per-seed difference between them is the rule's
+and not the fill luck's. The implementation here is independent of
+market_maker.py.
+
+Outputs
+-------
+    audit_results.json   per-seed metrics for A and B, and the paired summary:
+                         the P&L difference with a 95% CI and win rate, each
+                         quoter's profitable share, and the per-seed
+                         inventory-sigma and drawdown reductions
 
 Usage:
     python audit.py --seeds 200            # writes audit_results.json
@@ -43,10 +40,12 @@ import numpy as np
 
 from evaluate import write_json
 
+SCHEMA_VERSION = 2
+
 
 @dataclass(frozen=True)
-class NotebookConfig:
-    """The notebook's parameters, verbatim."""
+class AuditConfig:
+    """The market_maker.Config defaults that the rule uses."""
     initial_price: float = 100.0
     drift: float = 0.0001
     volatility: float = 0.02
@@ -55,12 +54,12 @@ class NotebookConfig:
     order_size: int = 10
     n_ticks: int = 10_000
     naive_spread: float = 0.10
-    risk_aversion: float = 0.5       # the notebook hard-coded gamma = 0.5 in quote()
-    kappa: float = 10.0              # the notebook hard-coded kappa = 10 in tick()
+    risk_aversion: float = 0.5       # gamma
+    kappa: float = 10.0              # fill-intensity decay
     max_inventory: int = 100
 
 
-def draw_market(cfg: NotebookConfig, seed: int):
+def draw_market(cfg: AuditConfig, seed: int):
     """Price path, arrivals, directions and fill uniforms from ONE stream."""
     rng = np.random.default_rng(seed)
     eps = rng.standard_normal(cfg.n_ticks - 1)
@@ -77,8 +76,8 @@ def draw_market(cfg: NotebookConfig, seed: int):
             fill_draws.tolist())
 
 
-class OldMaker:
-    def __init__(self, cfg: NotebookConfig):
+class RuleMaker:
+    def __init__(self, cfg: AuditConfig):
         self.cfg = cfg
         self.inventory = 0
         self.cash = 0.0
@@ -107,16 +106,16 @@ class OldMaker:
         self.inv_path[t] = self.inventory
 
 
-class Naive(OldMaker):
-    """Strategy A: symmetric quotes at the hand-picked spread."""
+class Naive(RuleMaker):
+    """A: symmetric quotes at the hand-picked spread."""
 
     def quote(self, mid: float) -> tuple[float, float]:
         h = self.cfg.naive_spread / 2.0
         return mid - h, mid + h
 
 
-class InventoryAware(OldMaker):
-    """Strategy B: the same spread, skewed by -q*gamma*sigma^2 (no horizon)."""
+class InventoryAware(RuleMaker):
+    """B: the same spread, skewed by -q*gamma*sigma^2 (no horizon)."""
 
     def quote(self, mid: float) -> tuple[float, float]:
         cfg = self.cfg
@@ -125,30 +124,30 @@ class InventoryAware(OldMaker):
         return r - h, r + h
 
 
-def old_metrics(s: OldMaker) -> dict[str, float]:
+def replay(cls: type[RuleMaker], cfg: AuditConfig, market) -> RuleMaker:
+    """Run one quoter over a market from draw_market."""
+    prices, arrivals, directions, draws = market
+    s = cls(cfg)
+    tick = s.tick
+    for t in range(cfg.n_ticks):
+        tick(t, prices[t], arrivals[t], directions[t], draws[t])
+    return s
+
+
+def rule_metrics(s: RuleMaker) -> dict[str, float]:
     pnl = s.pnl
-    ret = np.diff(pnl)
     return {
         "final_pnl": float(pnl[-1]),
-        # the notebook's "Sharpe": per-tick mean/std scaled by sqrt(252), a
-        # daily-returns convention applied to ticks; kept for comparability only
-        "notebook_sharpe": float(ret.mean() / (ret.std() + 1e-6) * math.sqrt(252)),
         "max_drawdown": float(np.min(pnl - np.maximum.accumulate(pnl))),
         "inventory_std": float(s.inv_path.std()),
         "mean_abs_inventory": float(np.abs(s.inv_path).mean()),
     }
 
 
-def run_seed(cfg: NotebookConfig, seed: int) -> dict[str, dict[str, float]]:
-    prices, arrivals, directions, draws = draw_market(cfg, seed)
-    out = {}
-    for name, cls in (("A", Naive), ("B", InventoryAware)):
-        s = cls(cfg)
-        tick = s.tick
-        for t in range(cfg.n_ticks):
-            tick(t, prices[t], arrivals[t], directions[t], draws[t])
-        out[name] = old_metrics(s)
-    return out
+def run_seed(cfg: AuditConfig, seed: int) -> dict[str, dict[str, float]]:
+    market = draw_market(cfg, seed)
+    return {name: rule_metrics(replay(cls, cfg, market))
+            for name, cls in (("A", Naive), ("B", InventoryAware))}
 
 
 def pct(v: np.ndarray, q: float) -> float:
@@ -162,15 +161,13 @@ def main() -> None:
     p.add_argument("--json", default="audit_results.json")
     args = p.parse_args()
 
-    cfg = NotebookConfig()
+    cfg = AuditConfig()
     rows = [run_seed(cfg, s) for s in range(args.seeds)]
 
     def col(strategy: str, key: str) -> np.ndarray:
         return np.array([r[strategy][key] for r in rows])
 
     pnl_a, pnl_b = col("A", "final_pnl"), col("B", "final_pnl")
-    with np.errstate(divide="ignore", invalid="ignore"):
-        rel = np.where(pnl_a != 0, (pnl_b - pnl_a) / np.abs(pnl_a) * 100.0, np.nan)
     istd_a, istd_b = col("A", "inventory_std"), col("B", "inventory_std")
     mdd_a, mdd_b = col("A", "max_drawdown"), col("B", "max_drawdown")
     inv_red = (1.0 - istd_b / istd_a) * 100.0
@@ -181,31 +178,28 @@ def main() -> None:
     d_pnl = pnl_b - pnl_a
     se_pnl = float(d_pnl.std(ddof=1) / math.sqrt(n))
 
-    print(f"{n} paired seeds, the notebook's strategy logic (OLD model, not "
-          "market_maker.py)\n")
+    print(f"{n} paired seeds: A = benchmark, B = horizon-free skew rule\n")
     print(f"{'metric':<30}{'p5':>12}{'median':>12}{'p95':>12}")
-    for lab, v in (("Strategy A final P&L", pnl_a),
-                   ("Strategy B final P&L", pnl_b),
-                   ("rel. improvement %", rel[~np.isnan(rel)])):
+    for lab, v in (("A final P&L", pnl_a), ("B final P&L", pnl_b)):
         print(f"{lab:<30}{pct(v, 5):>12,.0f}{np.median(v):>12,.0f}{pct(v, 95):>12,.0f}")
     print()
-    print(f"Strategy A profitable in {(pnl_a > 0).mean() * 100:.0f}% of seeds; "
-          f"B in {(pnl_b > 0).mean() * 100:.0f}%")
-    print(f"B beats A on P&L in {(pnl_b > pnl_a).mean() * 100:.0f}% of seeds; "
+    print(f"A profitable in {(pnl_a > 0).mean() * 100:.1f}% of seeds; "
+          f"B in {(pnl_b > 0).mean() * 100:.1f}%")
+    print(f"B beats A on P&L in {(pnl_b > pnl_a).mean() * 100:.1f}% of seeds; "
           f"paired mean B-A = {d_pnl.mean():,.0f} "
           f"[{d_pnl.mean() - 1.96 * se_pnl:,.0f}, {d_pnl.mean() + 1.96 * se_pnl:,.0f}]")
-    print(f"inventory-std reduction: median {np.median(inv_red):+.0f}%  "
-          f"(p5 {pct(inv_red, 5):+.0f}%, p95 {pct(inv_red, 95):+.0f}%), "
-          f"B lower in {(istd_b < istd_a).mean() * 100:.0f}% of seeds")
+    print(f"inventory-std reduction: median {np.median(inv_red):+.1f}%  "
+          f"(p5 {pct(inv_red, 5):+.1f}%, p95 {pct(inv_red, 95):+.1f}%), "
+          f"B lower in {(istd_b < istd_a).mean() * 100:.1f}% of seeds")
     finite = mdd_red[~np.isnan(mdd_red)]
-    print(f"max-drawdown reduction : median {np.median(finite):+.0f}%  "
-          f"(p5 {pct(finite, 5):+.0f}%, p95 {pct(finite, 95):+.0f}%), "
-          f"B shallower in {(mdd_b > mdd_a).mean() * 100:.0f}% of seeds")
+    print(f"max-drawdown reduction : median {np.median(finite):+.1f}%  "
+          f"(p5 {pct(finite, 5):+.1f}%, p95 {pct(finite, 95):+.1f}%), "
+          f"B shallower in {(mdd_b > mdd_a).mean() * 100:.1f}% of seeds")
 
     out = {
-        "schema": 1,
-        "model": "old notebook model (simulation.ipynb): fixed 0.10 spread, "
-                 "skew -q*gamma*sigma^2 with gamma=0.5 and no horizon term",
+        "schema": SCHEMA_VERSION,
+        "model": "A: fixed 0.10 spread, symmetric; B: the same spread around "
+                 "r = s - q*gamma*sigma^2 with gamma=0.5 and no horizon term",
         "paired": True,
         "n_seeds": n,
         "config": cfg.__dict__,
@@ -215,9 +209,6 @@ def main() -> None:
                       "p95": pct(pnl_a, 95), "profitable_share": float((pnl_a > 0).mean())},
             "pnl_B": {"p5": pct(pnl_b, 5), "median": float(np.median(pnl_b)),
                       "p95": pct(pnl_b, 95), "profitable_share": float((pnl_b > 0).mean())},
-            "rel_improvement_pct": {"p5": pct(rel[~np.isnan(rel)], 5),
-                                    "median": float(np.nanmedian(rel)),
-                                    "p95": pct(rel[~np.isnan(rel)], 95)},
             "pnl_B_minus_A": {"mean": float(d_pnl.mean()), "se": se_pnl,
                               "ci95": [float(d_pnl.mean() - 1.96 * se_pnl),
                                        float(d_pnl.mean() + 1.96 * se_pnl)],

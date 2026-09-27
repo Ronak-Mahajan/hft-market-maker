@@ -66,7 +66,7 @@ jobs:
           echo "== evaluate.py --seeds 100 --gamma-sweep :: $(date -u +%FT%TZ)" | tee -a ci.log
           python evaluate.py --seeds 100 --gamma-sweep 2>&1 | tee -a ci.log; exit ${PIPESTATUS[0]}
 
-      - name: Audit the old notebook model (200 paired seeds)
+      - name: Audit the horizon-free skew rule (200 paired seeds)
         shell: bash
         run: |
           echo "== audit.py --seeds 200 :: $(date -u +%FT%TZ)" | tee -a ci.log
