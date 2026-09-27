@@ -36,11 +36,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import math
 from dataclasses import dataclass
 
 import numpy as np
+
+from evaluate import write_json
 
 
 @dataclass(frozen=True)
@@ -231,8 +232,7 @@ def main() -> None:
                                            "win_rate": float((mdd_b > mdd_a).mean())},
         },
     }
-    with open(args.json, "w", newline="\n") as f:
-        json.dump(out, f, indent=1)
+    write_json(args.json, out)
     print(f"\nwrote {args.json}")
 
 

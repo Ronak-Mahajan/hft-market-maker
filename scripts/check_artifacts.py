@@ -17,9 +17,11 @@ What counts as a difference:
   which count seeds; and the seed, arm, fills, max_abs_inventory and
   quote_crossings columns of results_seeds.csv.
 - Every other float must agree to a relative tolerance of 1e-9. The
-  simulations are deterministic, but the last digits of exp, log and
-  summation can differ between platforms and numpy builds, so a byte
-  comparison would fail on a correct regeneration.
+  writers round floats to 10 significant digits (evaluate.SIG_DIGITS),
+  which absorbs the platform noise in the last bits of exp, log and long
+  sums, so a correct regeneration normally matches byte for byte. A value
+  that falls within that noise of a rounding boundary comes out one unit
+  different in the tenth digit, and the tolerance accepts it.
 
 CI runs the generators and then this script on every push.
 """

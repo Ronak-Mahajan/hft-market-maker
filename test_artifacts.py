@@ -1,9 +1,10 @@
-"""Tests for scripts/check_artifacts.py, the CI comparison of regenerated
-artifacts against the committed copies."""
+"""Tests for the artifact writers and for scripts/check_artifacts.py, the CI
+comparison of regenerated artifacts against the committed copies."""
 from __future__ import annotations
 
 import copy
 import importlib.util
+import json
 from pathlib import Path
 
 import evaluate
@@ -67,3 +68,22 @@ def test_csv_counts_exact_and_floats_to_rtol(tmp_path):
     fills = float(first.split(",")[cols.index("fills")])
     assert errors(with_first_row("fills", repr(fills + 1.0)))
     assert errors("\n".join([header, first]) + "\n")
+
+
+def test_writers_round_floats_to_ten_significant_digits(tmp_path):
+    """Both writers round every float to evaluate.SIG_DIGITS significant
+    digits, below which platforms disagree, and write LF line endings.
+    Integers, strings and booleans pass through unchanged."""
+    path = tmp_path / "x.json"
+    evaluate.write_json(str(path), {"a": 1 / 3, "b": [2 / 3, 7], "c": True, "d": "s"})
+    assert json.loads(path.read_text()) == {"a": 0.3333333333,
+                                            "b": [0.6666666667, 7],
+                                            "c": True, "d": "s"}
+    raw = path.read_bytes()
+    assert raw.endswith(b"}\n") and b"\r" not in raw
+    csv_path = tmp_path / "seeds.csv"
+    evaluate.write_seeds_csv(str(csv_path), evaluate.evaluate(Config(n_ticks=300), range(1)))
+    assert b"\r" not in csv_path.read_bytes()
+    for row in csv_path.read_text().splitlines()[1:]:
+        for v in row.split(",")[2:]:
+            assert float(v) == evaluate.round_sig(float(v))

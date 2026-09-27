@@ -10,7 +10,7 @@ python evaluate.py --seeds 500        # four paired arms -> results.json, result
 python evaluate.py --seeds 100 --gamma-sweep   # -> results_sweep.json
 python audit.py --seeds 200           # paired replay of the simpler rule -> audit_results.json
 python scripts/check_artifacts.py     # regenerated artifacts vs the committed copies
-python -m pytest -q                   # 24 tests
+python -m pytest -q                   # 25 tests
 ```
 
 ## The problem
@@ -276,7 +276,8 @@ scripts/
 test_market_maker.py   21 tests: CRN fill-subset property, P&L accounting from the
                        fill record, closed-form spread, skew units, crossing guard
                        (clamp, count, and price cap), results schema
-test_artifacts.py      3 tests: the tolerance and exact-match rules of check_artifacts.py
+test_artifacts.py      4 tests: 10-digit float rounding in the writers, and the
+                       tolerance and exact-match rules of check_artifacts.py
 results.json           per-arm means and every pairwise comparison (checked by CI)
 results_seeds.csv      one row per (seed, arm)                     (checked by CI)
 results_sweep.json     the same summaries on a gamma grid, 100 seeds (checked by CI)

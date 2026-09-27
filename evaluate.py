@@ -101,6 +101,15 @@ CSV_COLUMNS = (("inventory_sigma", "inventory_std"),
 
 DEFAULT_GAMMA_GRID = "0.05,0.1,0.2,0.5,1,2,5"
 
+# Every float written to an artifact is rounded to this many significant
+# digits. The simulation is deterministic, but the last bits of exp, log and
+# long sums differ between platforms and numpy builds: a Windows run differs
+# from the Linux CI run by up to 4e-11 relative. Ten digits sit above that
+# noise, so another platform writes the committed bytes except where a value
+# falls within the noise of a rounding boundary. There it differs by one unit
+# in the tenth digit, which scripts/check_artifacts.py accepts.
+SIG_DIGITS = 10
+
 
 def arm_spreads(cfg: Config) -> dict[str, float]:
     """The spread each arm quotes at tau=1 (the A-S spread decays by
@@ -205,15 +214,41 @@ def build_report(cfg: Config, rows, n_seeds: int) -> dict:
     }
 
 
+def round_sig(x: float, digits: int = SIG_DIGITS) -> float:
+    """x rounded to `digits` significant digits (nan and inf pass through)."""
+    return float(f"{x:.{digits}g}")
+
+
+def rounded(obj):
+    """A copy of a JSON-ready structure with every float passed through
+    round_sig. Integers, strings and booleans are left alone."""
+    if isinstance(obj, bool):
+        return obj
+    if isinstance(obj, float):
+        return round_sig(obj)
+    if isinstance(obj, dict):
+        return {k: rounded(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [rounded(v) for v in obj]
+    return obj
+
+
+def write_json(path: str, obj) -> None:
+    """LF line endings and floats rounded to SIG_DIGITS (see SIG_DIGITS)."""
+    with open(path, "w", newline="\n") as f:
+        json.dump(rounded(obj), f, indent=1)
+        f.write("\n")
+
+
 def write_seeds_csv(path: str, rows) -> None:
     # LF line endings on every platform (the csv default is CRLF, and text
-    # mode would translate on Windows) so a local run and the Linux CI run
-    # produce byte-identical artifacts.
+    # mode would translate on Windows); floats rounded to SIG_DIGITS.
     with open(path, "w", newline="") as f:
         w = csv.writer(f, lineterminator="\n")
         w.writerow(["seed", "arm"] + [c for c, _ in CSV_COLUMNS])
         for seed, slug, m in rows:
-            w.writerow([seed, slug] + [repr(float(m[k])) for _, k in CSV_COLUMNS])
+            w.writerow([seed, slug]
+                       + [repr(round_sig(float(m[k]))) for _, k in CSV_COLUMNS])
 
 
 def sweep(cfg: Config, seeds, grid: list[float]) -> dict:
@@ -325,8 +360,7 @@ def main() -> None:
         grid = parse_grid(args.gamma_sweep)
         sw = sweep(Config(), range(args.seeds), grid)
         print_sweep(sw)
-        with open(args.sweep_json, "w", newline="\n") as f:
-            json.dump(sw, f, indent=1)
+        write_json(args.sweep_json, sw)
         print(f"\nwrote {args.sweep_json}  ({time.perf_counter() - t0:.0f} s)")
         return
 
@@ -341,8 +375,7 @@ def main() -> None:
     rows = evaluate(cfg, range(args.seeds))
     rep = build_report(cfg, rows, args.seeds)
     print_report(rep)
-    with open(json_path, "w", newline="\n") as f:
-        json.dump(rep, f, indent=1)
+    write_json(json_path, rep)
     write_seeds_csv(csv_path, rows)
     print(f"\nwrote {json_path} and {csv_path}  "
           f"({time.perf_counter() - t0:.0f} s)")
