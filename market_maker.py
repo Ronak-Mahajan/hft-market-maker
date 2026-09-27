@@ -210,10 +210,10 @@ class MarketMaker:
     cfg.min_price is raised to it and counted in n_floored. The mid is GBM and
     never reaches zero, but the model half-spread is a fixed dollar amount
     (about $0.098 at the defaults), so on a path whose mid falls below it the
-    raw model bid is at or below zero.
-    The ask needs no floor, since the guard keeps it at or above the mid. On
-    a mid below min_price the floored bid would sit above the mid, so the
-    crossing guard puts it back at the mid and counts that too.
+    raw model bid is at or below zero. The ask needs no floor, since the guard
+    keeps it at or above the mid. On a mid below min_price the floored bid
+    would sit above the mid, so the crossing guard puts it back at the mid
+    and counts that too.
 
     quote() itself is left raw so the model formulas can be tested directly."""
 

@@ -189,7 +189,7 @@ def summarise(diffs: np.ndarray, label: str, unit: str = "",
         if basis == "log":
             def f(x): return 100.0 * -math.expm1(-x)
         else:
-            def f(x): return 100.0 * x / abs(bench)
+            def f(x): return 100.0 * x / abs(bench) if bench else math.nan
         out["pct"] = {"basis": basis, "mean": f(mean), "ci95": [f(lo), f(hi)]}
     return out
 
