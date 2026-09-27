@@ -1,15 +1,16 @@
-# Inventory-Aware Market Making: does Avellaneda-Stoikov actually pay, and which half of it?
+# Inventory-Aware Market Making: does Avellaneda-Stoikov pay, and which half does the work?
 
-An event-driven backtester for a single market maker quoting a two-sided book
-against Poisson order flow, built to answer one question: **does skewing quotes
-against your inventory measurably reduce risk, and what does it cost?**
+A discrete-time Monte Carlo simulator of a single market maker posting a bid
+and an ask against Poisson order flow on a synthetic GBM mid, built to answer
+one question: **does skewing quotes against your inventory measurably reduce
+risk, and what does it cost?**
 
 ```bash
 pip install -r requirements.lock      # Python 3.12, the exact versions CI installs
 python evaluate.py --seeds 500        # four paired arms -> results.json, results_seeds.csv
 python evaluate.py --seeds 500 --max-inventory none   # position limit lifted -> results_uncapped.json
 python evaluate.py --seeds 100 --gamma-sweep   # -> results_sweep.json
-python audit.py --seeds 200           # paired replay of the simpler rule -> audit_results.json
+python audit.py --seeds 200           # horizon-free skew rule, paired -> audit_results.json
 python scripts/check_artifacts.py     # regenerated artifacts vs the committed copies
 python -m pytest -q                   # 34 tests
 ```
@@ -76,8 +77,8 @@ should be read as a per-horizon risk aversion. The lean is judged on the
 yardstick that governs fills: with `κ = 10` the fill-decay length is
 `1/κ = $0.10`, and the default lean of `100 * 0.5 * 0.02² = $0.02` at maximum
 inventory moves the near-side fill probability from 0.377 to 0.460 and the far
-side to 0.308. That is a material asymmetry, which is why the skew is measured
-rather than dismissed; `--gamma-sweep` shows how the answer moves with `γ`.
+side to 0.308. That is a material asymmetry. `--gamma-sweep` shows how the
+answer moves with `γ`.
 
 **Price level.** In the lean, `σ` stands in for the paper's dollar volatility
 (`σS` for a GBM mid), so the lean is a fixed dollar amount, at most $0.02,
@@ -93,10 +94,11 @@ drawdown do (`price_paths` in `results.json`).
 
 500 paired seeds (0 to 499), γ = 0.5, all four arms on the same market draws.
 Every number below is read out of `results.json` unless another artifact is
-named. CI reruns `evaluate.py --seeds 500` (with and without the position
-limit), the γ sweep and the audit on every push and fails if the result
-differs from the committed files (`scripts/check_artifacts.py`: floats to a
-relative 1e-9, counts and flags exactly).
+named. On every push CI reruns `evaluate.py --seeds 500` (with and without the
+position limit), the γ sweep and the audit, about a minute of compute, and
+fails if the result differs from the committed files
+(`scripts/check_artifacts.py`: floats to a relative 1e-9, counts and flags
+exactly).
 
 **The full model cuts inventory σ 17.0% against the benchmark, on 36% fewer
 fills.** Averaged over both orderings, the wider spread accounts for 10.2
@@ -209,7 +211,7 @@ P&L. Its paired standard deviation is about 40,000 per run, and for
 `as − fixed` it comes to −581 [−4,060, +2,899] against +66.0 of spread
 captured.
 
-### What the decomposition actually says
+### What the decomposition shows
 
 - **The skew's extra fills come from the position limit.** At the benchmark's
   own spread (`skew_only`) the skew takes 2.5% more fills than the benchmark
@@ -234,11 +236,11 @@ captured.
 ### The answer depends on γ
 
 `evaluate.py --seeds 100 --gamma-sweep` writes `results_sweep.json`: inventory-σ
-differences on a 100-seed paired grid. The last two columns are per-arm crossing
-counts, the mean ticks per 10,000-tick seed on which a raw quote crossed the mid
-and the guard clamped it. They are reported separately because the two skewing
-arms cross at very different γ: `skew_only` applies the same lean around a
-half-spread about half as wide, so it crosses first.
+differences at each γ on seeds 0 to 99, paired. The last two columns are
+per-arm crossing counts, the mean ticks per 10,000-tick seed on which a raw
+quote crossed the mid and the guard clamped it. They are reported separately
+because the two skewing arms cross at very different γ: `skew_only` applies
+the same lean around a half-spread about half as wide, so it crosses first.
 
 | γ | model spread | spread effect (skew off) | skew at the model spread | skew at the benchmark spread | total | crossings `as` | crossings `skew_only` |
 |---|---|---|---|---|---|---|---|
@@ -250,17 +252,21 @@ half-spread about half as wide, so it crosses first.
 | 2.0 | 0.183 | 6.60 | 11.35 | 14.88 | 17.95 | 0 | 17.4 |
 | 5.0 | 0.164 | 5.50 | 20.14 | 23.58 | 25.64 | 17.5 | 438.1 |
 
-The spread effect is nearly flat because the model spread barely moves over two
-decades of γ. The skew effect at the model spread is **indistinguishable from
-zero at γ ≤ 0.1** (at the benchmark spread it is 0.61 and 1.01, small but
-resolved) and becomes the whole story by γ = 5, but by then part of what is
-being measured is the guard, not the model: the reservation lean has outgrown
-the half-spread, so the `as` arm is clamped to the mid on ~17.5 ticks per seed
-and `skew_only` on ~438 of its 10,000. **No arm crosses the mid anywhere at
-γ ≤ 1**, so those rows are the clean ones; the γ ≥ 2 rows are published
-because a sweep should show where a model stops behaving like the model, not
-because they are a better setting. So "does the skew pay" has no γ-free
-answer; γ = 0.5 is the repo's default and the number quoted above.
+The spread effect follows how much wider the model spread is than the
+benchmark's. In the rows with no crossings (γ ≤ 1) the model spread moves only
+from 0.200 to 0.191 and the spread effect stays between 7.3 and 7.9; at γ = 5
+the model spread is 0.164 and the spread effect 5.50, still significant. The
+skew effect at the model spread is **indistinguishable from zero at γ ≤ 0.1**
+(at the benchmark spread it is 0.61 and 1.01, small but resolved) and grows
+with γ to 20.14 of the 25.64 total at γ = 5. From γ = 2 the crossing guard is
+part of what is measured: the reservation lean outgrows the half-spread, so
+`skew_only` is clamped to the mid on 17.4 ticks per seed at γ = 2 and 438.1 at
+γ = 5, and `as` on 17.5 at γ = 5. **No arm crosses the mid anywhere at
+γ ≤ 1**, so those rows measure the model alone, and the γ ≥ 2 rows show where
+the guard starts to drive the result. How much the skew contributes depends
+on γ. The headline tables use the default γ = 0.5 on 500 seeds; the γ = 0.5
+row here covers seeds 0 to 99, the first 100 of those, so it reads 7.58 /
+2.41 / 9.99 against the 500-seed 6.13 / 2.46 / 8.59.
 
 Per-arm means, every pairwise comparison and the factorial effects live in
 `results.json` (schema v3: `arms` keyed by arm, `comparisons` keyed by
@@ -273,40 +279,40 @@ final_pnl, t_stat, max_abs_inventory, quote_crossings, floored_bids, edge,
 inventory_pnl, blocked_fills, ticks_at_cap`), so any number in the tables
 above can be recomputed from the committed artifacts.
 
-The seed count was not reduced for CI: the whole job (tests, the 500-seed
-four-arm run, its 500-seed rerun without the position limit, the 100-seed γ
-sweep and the 200-seed audit) finishes well inside the ten-minute budget, so
-the headline artifacts are always the full 500 seeds.
-
 ## Why the evaluation is built this way
 
 A single seed cannot separate a strategy from its luck. One path of a
-10,000-tick GBM with Poisson fills carries enormous terminal variance, so a
-one-seed comparison measures the seed. Two choices make the difference
-resolvable:
+10,000-tick GBM with Poisson fills carries terminal P&L variance that swamps
+the difference between two quoters, so a one-seed comparison measures the
+seed. Two choices make the difference resolvable:
 
-1. **Common random numbers.** Fill draws are generated with the market, not
-   inside the strategy loop, so every maker faces identical luck. Absent the
+1. **Common random numbers.** Fill draws are generated with the market, before
+   any strategy runs, so every maker faces identical luck. Absent the
    position limit, a quote that is always further from the mid than the
    benchmark's can only be filled on a tick where the benchmark's would have
    been (same uniform, smaller probability); the test suite asserts that tick
    by tick with the limit lifted.
-2. **Distributions, not point estimates.** Every number is a mean over paired
-   seeds with a 95% confidence interval and a win rate, and the per-seed arrays
-   are committed.
+2. **Distributions over seeds.** Every number is a mean over paired seeds with
+   a 95% confidence interval and a win rate, and the per-seed arrays are
+   committed.
 
-The same treatment is applied to a simpler quoting rule: a fixed 0.10 spread
-with a skew of `−q*γ*σ²` and no horizon term.
-`audit.py` replays it against the benchmark on 200 paired seeds and writes
-`audit_results.json`, which CI checks on every push. Its per-seed P&L
-"improvement" ranges from −229% to +179%
-(median +4.2%), the paired P&L difference is +138 [−1,847, +2,123] at a 51% win
-rate, and the benchmark is profitable on 49% of seeds against the skewer's
-46.5%, so profit is not resolvable there either. The risk numbers do hold up
-under pairing, with a median inventory-σ reduction of 18.8% (94.5% of seeds) and
-a median drawdown reduction of 21.8% (90%), the same shape as the four-arm
-result. That rule survives in the main experiment as the `skew_only` arm, which
-is the cleanest test of the skew on its own.
+### The horizon-free skew rule
+
+`audit.py` applies the same paired design to a simpler rule: the benchmark's
+0.10 spread around a reservation price `s − q*γ*σ²`, γ = 0.5, with no horizon
+term, so the lean is the same on every tick. On 200 paired seeds
+(`audit_results.json`) its P&L difference against the benchmark is +138
+[−1,847, +2,123] at a 51% win rate, and the benchmark is profitable on 49% of
+seeds against the rule's 46.5%, so P&L does not resolve here either. Its median
+per-seed inventory-σ reduction is 18.8% (lower on 94.5% of seeds) and its
+median drawdown reduction 21.8% (shallower on 90%).
+
+The `skew_only` arm is this rule with the lean scaled by the time remaining τ,
+which averages one half over the run. On the same 200 seeds its median
+inventory-σ reduction is 8.2% (87.5% of seeds) and its median drawdown
+reduction 12.6% (81.5%). With τ held at 1, `skew_only` reproduces the rule
+tick for tick (`test_market_maker.py` checks it), so the horizon term accounts
+for the whole gap.
 
 ## Guard rails
 
@@ -314,20 +320,20 @@ is the cleanest test of the skew on its own.
   the half-spread, so the raw bid sits above the mid (or the ask below it) and
   the maker would buy above fair value, a certain loss on that side, because
   the fill probability there has already clipped to 1. `MarketMaker.step` clamps
-  the crossing side to the mid and counts the event. Note what the clamp does
-  and does not do: it caps the fill **price** at fair value, and it leaves the
-  probability at 1 on that side. `quote_crossings` is reported per arm and per
-  seed; it is zero for all four arms at the defaults and at every γ ≤ 1 of the
-  sweep, and non-zero above that.
+  the crossing side to the mid and counts the event. The clamp caps the fill
+  **price** at fair value and leaves the fill probability at 1 on that side.
+  `quote_crossings` is reported per arm and per seed; it is zero for all four
+  arms at the defaults and at every γ ≤ 1 of the sweep, and non-zero above
+  that.
 - **Price floor.** A raw bid below `min_price` ($0.01) is raised to it. The
   mid is GBM and never reaches zero, but the model half-spread is a fixed
   $0.098, so where the mid falls below that the raw model bid is at or below
   zero. `MarketMaker.step` floors such a bid and counts it in
   `floored_bids`. Across the 500 seeds it binds on one: seed 37, on 145 ticks
   for each of the two model-spread arms.
-- **`t_stat`, not "Sharpe".** `mean(step P&L) / std(step P&L) * √n` is the
-  whole-horizon Sharpe, numerically the t-statistic of the mean step P&L. It is
-  not annualised, and it is not comparable to an annualised Sharpe ratio.
+- **`t_stat`.** `mean(step P&L) / std(step P&L) * √n` is the whole-horizon
+  Sharpe, numerically the t-statistic of the mean step P&L. It is not
+  annualised and is not comparable to an annualised Sharpe ratio.
 - **`--gamma` and `--max-inventory` never overwrite the headline.** A
   `--gamma g` run writes `results_gamma_<g>.json` and
   `results_seeds_gamma_<g>.csv`; `--max-inventory none` writes
@@ -339,13 +345,12 @@ is the cleanest test of the skew on its own.
   unconstrained symmetric quoter, and it binds hard. The `max_abs_inventory`
   column of `results_seeds.csv` touches the cap on 100% of seeds for `fixed`,
   99.2% for `skew_only`, 98.0% for `spread_matched` and 92.6% for `as`, and the
-  benchmark ends 8.9% of all ticks there (`ticks_at_cap`), so part of what
-  every arm is measured against is a position limit rather than a quoting
-  rule. With the limit lifted (`results_uncapped.json`, the same 500 seeds)
-  the full model cuts inventory σ 43.2% of the benchmark's 90.0, and the main
-  effects are 16.2 points for the spread and 27.0 for the skew: without the
-  limit the skew is the larger part. The tests lift it where it would
-  interfere.
+  benchmark ends 8.9% of all ticks there (`ticks_at_cap`), so the position
+  limit sets part of every arm's measured risk. With the limit lifted
+  (`results_uncapped.json`, the same 500 seeds) the full model cuts inventory
+  σ 43.2% of the benchmark's 90.0, and the main effects are 16.2 points for
+  the spread and 27.0 for the skew: without the limit the skew is the larger
+  part. The tests lift it where it would interfere.
 
 ## Limitations
 
