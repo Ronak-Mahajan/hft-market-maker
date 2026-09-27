@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -243,6 +244,34 @@ def test_inventory_limit_is_respected():
     for S in ARMS:
         s = run(S(cfg), m)
         assert np.abs(s.inv_path).max() <= cfg.max_inventory
+
+
+def test_inventory_limit_checks_the_position_after_the_trade():
+    """A cap that is not a multiple of the order size: with orders of 10 and
+    a cap of 45 every arm reaches 40 on this path and stops there. Checking
+    the position before the trade would let it through to 50."""
+    cfg = Config(n_ticks=4_000, max_inventory=45)
+    m = simulate_market(cfg, 11)
+    for S in ARMS:
+        assert np.abs(run(S(cfg), m).inv_path).max() == 40
+
+
+def test_config_rejects_parameters_the_model_cannot_run():
+    """gamma = 0 divides by zero in the model spread and gamma < 0 leans the
+    quotes into the position; both, and the other degenerate settings, are
+    refused at construction. sweep() builds each grid point with
+    dataclasses.replace, which re-runs the check."""
+    bad = [("risk_aversion", 0.0), ("risk_aversion", -1.0),
+           ("risk_aversion", math.nan), ("kappa", 0.0), ("fill_scale", 0.0),
+           ("order_size", 0), ("order_size", 2.5), ("max_inventory", -10),
+           ("fixed_spread", -0.1), ("volatility", -0.02),
+           ("initial_price", 0.0), ("n_ticks", 1)]
+    for field, value in bad:
+        with pytest.raises(ValueError, match=field):
+            Config(**{field: value})
+    with pytest.raises(ValueError, match="risk_aversion"):
+        replace(Config(), risk_aversion=0.0)
+    assert replace(Config(), risk_aversion=2.0).risk_aversion == 2.0
 
 
 def test_metrics_label_the_horizon_statistic_as_t_stat():

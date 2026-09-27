@@ -330,7 +330,10 @@ def main() -> None:
         print(f"\nwrote {args.sweep_json}  ({time.perf_counter() - t0:.0f} s)")
         return
 
-    cfg = Config() if args.gamma is None else Config(risk_aversion=args.gamma)
+    try:
+        cfg = Config() if args.gamma is None else Config(risk_aversion=args.gamma)
+    except ValueError as e:
+        raise SystemExit(f"--gamma: {e}") from None
     suffix = "" if args.gamma is None else f"_gamma_{args.gamma:g}"
     json_path = args.json or f"results{suffix}.json"
     csv_path = args.csv or f"results_seeds{suffix}.csv"

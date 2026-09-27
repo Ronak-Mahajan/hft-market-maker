@@ -66,6 +66,7 @@ close to meaningless -- see evaluate.py.
 from __future__ import annotations
 
 import math
+import numbers
 from dataclasses import dataclass
 
 import numpy as np
@@ -78,7 +79,15 @@ __all__ = ["Config", "Market", "simulate_market", "MarketMaker",
 
 @dataclass(frozen=True)
 class Config:
-    """Simulation parameters. Frozen so a run cannot mutate its own settings."""
+    """Simulation parameters. Frozen so a run cannot mutate its own settings.
+
+    Validated on construction, which dataclasses.replace repeats: gamma,
+    kappa, the order size, the fill scale, dt and the initial price must be
+    positive; volatility, arrival rate, spread and inventory cap must be
+    non-negative; n_ticks is at least 2. A bad value raises ValueError
+    instead of failing mid-run (gamma = 0 divides by zero in the model
+    spread) or silently reversing the skew (gamma < 0 leans the quotes into
+    the position)."""
 
     initial_price: float = 100.0
     drift: float = 0.0001            # mu, per tick
@@ -91,10 +100,34 @@ class Config:
     fill_scale: float = 1.0          # A
 
     n_ticks: int = 10_000
-    max_inventory: int = 100
+    max_inventory: int = 100         # |q| never exceeds this
 
     fixed_spread: float = 0.10       # the naive benchmark's hand-picked spread
     risk_aversion: float = 0.5       # gamma
+
+    def __post_init__(self) -> None:
+        for name in ("order_size", "n_ticks", "max_inventory"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, numbers.Integral):
+                raise ValueError(f"{name} must be an integer, got {value!r}")
+        for name in ("initial_price", "drift", "volatility", "dt",
+                     "poisson_rate", "kappa", "fill_scale", "fixed_spread",
+                     "risk_aversion"):
+            value = getattr(self, name)
+            if not math.isfinite(value):
+                raise ValueError(f"{name} must be finite, got {value!r}")
+        for name in ("initial_price", "dt", "kappa", "fill_scale",
+                     "risk_aversion", "order_size"):
+            value = getattr(self, name)
+            if value <= 0:
+                raise ValueError(f"{name} must be > 0, got {value!r}")
+        for name in ("volatility", "poisson_rate", "fixed_spread",
+                     "max_inventory"):
+            value = getattr(self, name)
+            if value < 0:
+                raise ValueError(f"{name} must be >= 0, got {value!r}")
+        if self.n_ticks < 2:
+            raise ValueError(f"n_ticks must be >= 2, got {self.n_ticks!r}")
 
 
 @dataclass
@@ -196,10 +229,13 @@ class MarketMaker:
                 ask = mid
         self.last_quote = (bid, ask)
         if arrived:
-            # lambda(delta) = A exp(-kappa delta), clipped to a probability
+            # lambda(delta) = A exp(-kappa delta), clipped to a probability.
+            # The position check is on the inventory AFTER the trade, so |q|
+            # never exceeds max_inventory whatever the order size.
             if direction == 1:                       # buyer lifts our offer
                 p = min(cfg.fill_scale * math.exp(-cfg.kappa * (ask - mid)), 1.0)
-                if draw < p and self.inventory > -cfg.max_inventory:
+                if (draw < p and self.inventory - cfg.order_size
+                        >= -cfg.max_inventory):
                     self.inventory -= cfg.order_size
                     self.cash += ask * cfg.order_size
                     self.n_fills += 1
@@ -207,7 +243,8 @@ class MarketMaker:
                     self.fill_prices[t] = ask
             else:                                    # seller hits our bid
                 p = min(cfg.fill_scale * math.exp(-cfg.kappa * (mid - bid)), 1.0)
-                if draw < p and self.inventory < cfg.max_inventory:
+                if (draw < p and self.inventory + cfg.order_size
+                        <= cfg.max_inventory):
                     self.inventory += cfg.order_size
                     self.cash -= bid * cfg.order_size
                     self.n_fills += 1
