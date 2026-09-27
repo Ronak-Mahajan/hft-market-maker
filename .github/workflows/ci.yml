@@ -19,9 +19,10 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    # The whole job is about a minute of compute (pytest 2 s, evaluate --seeds
-    # 500 21 s, the 100-seed gamma sweep 23 s, audit --seeds 200 4 s,
-    # measured). The cap is the ten-minute budget the README states.
+    # The whole job is about a minute of compute (pytest 1 s, evaluate --seeds
+    # 500 19 s, the same run with --max-inventory none 19 s, the 100-seed
+    # gamma sweep 21 s, audit --seeds 200 3 s, measured on run 36295419274).
+    # The cap is the ten-minute budget the README states.
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
