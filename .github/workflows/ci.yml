@@ -68,6 +68,15 @@ jobs:
           echo "== done :: $(date -u +%FT%TZ)" | tee -a ci.log
           exit $rc
 
+      # The three steps above rewrite the four artifacts in the working tree.
+      # This compares them with the committed copies and fails on any
+      # difference (floats beyond a relative 1e-9, or any discrete field).
+      - name: Check regenerated artifacts against the committed copies
+        shell: bash
+        run: |
+          echo "== check_artifacts.py :: $(date -u +%FT%TZ)" | tee -a ci.log
+          python scripts/check_artifacts.py 2>&1 | tee -a ci.log; exit ${PIPESTATUS[0]}
+
       - name: Upload the log and regenerated artifacts on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
