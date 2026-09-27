@@ -77,7 +77,7 @@ ARM_NAMES = {cls.slug: cls.name for cls in ARMS}
 # (metric, better_is_higher). Differences are oriented so positive = a better.
 METRICS = (("final_pnl", True), ("edge", True), ("inventory_pnl", True),
            ("t_stat", True), ("inventory_std", False), ("max_drawdown", True),
-           ("n_fills", True))
+           ("n_fills", True), ("n_blocked", False), ("ticks_at_cap", False))
 
 # (a, b, question). Each summary is a - b, oriented by METRICS.
 COMPARISONS = (
@@ -101,7 +101,9 @@ CSV_COLUMNS = (("inventory_sigma", "inventory_std"),
                ("quote_crossings", "n_crossed"),
                ("floored_bids", "n_floored"),
                ("edge", "edge"),
-               ("inventory_pnl", "inventory_pnl"))
+               ("inventory_pnl", "inventory_pnl"),
+               ("blocked_fills", "n_blocked"),
+               ("ticks_at_cap", "ticks_at_cap"))
 
 DEFAULT_GAMMA_GRID = "0.05,0.1,0.2,0.5,1,2,5"
 # the metrics print_sweep shows; results_sweep.json carries all of METRICS
@@ -224,6 +226,11 @@ def build_report(cfg: Config, rows, n_seeds: int) -> dict:
                                "was clamped to it (market_maker.MarketMaker.step)",
             "floored_bids": "ticks on which the raw bid was below "
                             "Config.min_price and was raised to it",
+            "blocked_fills": "fills that won their draw but were refused "
+                             "because the trade would take |q| past "
+                             "max_inventory",
+            "ticks_at_cap": "ticks that end with the position at the limit, "
+                            "where every fill on one side is refused",
         },
     }
 

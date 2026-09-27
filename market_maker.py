@@ -227,6 +227,7 @@ class MarketMaker:
         self.n_fills = 0
         self.n_crossed = 0
         self.n_floored = 0
+        self.n_blocked = 0      # fills that won their draw but broke the cap
         self.last_quote: tuple[float, float] = (math.nan, math.nan)
 
     def quote(self, mid: float, t: int) -> tuple[float, float]:
@@ -250,24 +251,30 @@ class MarketMaker:
             # lambda(delta) = A exp(-kappa delta), clipped to a probability.
             # The position check is on the inventory AFTER the trade, so |q|
             # never exceeds max_inventory whatever the order size.
+            # A fill that wins its draw but would break the cap is refused
+            # and counted in n_blocked.
             if direction == 1:                       # buyer lifts our offer
                 p = min(cfg.fill_scale * math.exp(-cfg.kappa * (ask - mid)), 1.0)
-                if (draw < p and self.inventory - cfg.order_size
-                        >= -cfg.max_inventory):
-                    self.inventory -= cfg.order_size
-                    self.cash += ask * cfg.order_size
-                    self.n_fills += 1
-                    self.fills[t] = -1
-                    self.fill_prices[t] = ask
+                if draw < p:
+                    if self.inventory - cfg.order_size >= -cfg.max_inventory:
+                        self.inventory -= cfg.order_size
+                        self.cash += ask * cfg.order_size
+                        self.n_fills += 1
+                        self.fills[t] = -1
+                        self.fill_prices[t] = ask
+                    else:
+                        self.n_blocked += 1
             else:                                    # seller hits our bid
                 p = min(cfg.fill_scale * math.exp(-cfg.kappa * (mid - bid)), 1.0)
-                if (draw < p and self.inventory + cfg.order_size
-                        <= cfg.max_inventory):
-                    self.inventory += cfg.order_size
-                    self.cash -= bid * cfg.order_size
-                    self.n_fills += 1
-                    self.fills[t] = 1
-                    self.fill_prices[t] = bid
+                if draw < p:
+                    if self.inventory + cfg.order_size <= cfg.max_inventory:
+                        self.inventory += cfg.order_size
+                        self.cash -= bid * cfg.order_size
+                        self.n_fills += 1
+                        self.fills[t] = 1
+                        self.fill_prices[t] = bid
+                    else:
+                        self.n_blocked += 1
         self.pnl[t] = self.cash + self.inventory * mid
         self.inv_path[t] = self.inventory
         self.mids[t] = mid
@@ -386,6 +393,11 @@ def metrics(s: MarketMaker) -> dict[str, float]:
     defaults, which is why final_pnl cannot resolve a difference that edge
     measures to within a dollar or two.
 
+    n_blocked counts fills refused by the position limit (the draw beat the
+    fill probability, but the trade would have taken |q| past
+    max_inventory). ticks_at_cap counts the ticks that end with the position
+    at the limit, where every fill on one side would be refused.
+
     t_stat is mean(step P&L) / std(step P&L) * sqrt(n_steps): the per-step
     Sharpe ratio scaled to the whole horizon, which is numerically the
     t-statistic of the mean step P&L against zero. It is NOT annualised and
@@ -408,4 +420,7 @@ def metrics(s: MarketMaker) -> dict[str, float]:
         "n_fills": float(s.n_fills),
         "n_crossed": float(s.n_crossed),
         "n_floored": float(s.n_floored),
+        "n_blocked": float(s.n_blocked),
+        "ticks_at_cap": float(np.count_nonzero(
+            np.abs(s.inv_path) + s.cfg.order_size > s.cfg.max_inventory)),
     }

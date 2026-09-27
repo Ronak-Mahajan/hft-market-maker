@@ -48,7 +48,9 @@
     "max_abs_inventory": 100.0,
     "n_fills": 553.02,
     "n_crossed": 0.0,
-    "n_floored": 0.0
+    "n_floored": 0.0,
+    "n_blocked": 25.768,
+    "ticks_at_cap": 887.154
    },
    "se": {
     "final_pnl": 1913.653889,
@@ -61,7 +63,9 @@
     "max_abs_inventory": 0.0,
     "n_fills": 1.209129931,
     "n_crossed": 0.0,
-    "n_floored": 0.0
+    "n_floored": 0.0,
+    "n_blocked": 0.5825074952,
+    "ticks_at_cap": 18.59029259
    }
   },
   "spread_matched": {
@@ -77,7 +81,9 @@
     "max_abs_inventory": 99.74,
     "n_fills": 344.57,
     "n_crossed": 0.0,
-    "n_floored": 0.29
+    "n_floored": 0.29,
+    "n_blocked": 14.768,
+    "ticks_at_cap": 828.354
    },
    "se": {
     "final_pnl": 1503.288562,
@@ -90,7 +96,9 @@
     "max_abs_inventory": 0.09100199298,
     "n_fills": 0.9170802978,
     "n_crossed": 0.0,
-    "n_floored": 0.29
+    "n_floored": 0.29,
+    "n_blocked": 0.4413092563,
+    "ticks_at_cap": 23.32694558
    }
   },
   "skew_only": {
@@ -106,7 +114,9 @@
     "max_abs_inventory": 99.92,
     "n_fills": 566.584,
     "n_crossed": 0.0,
-    "n_floored": 0.0
+    "n_floored": 0.0,
+    "n_blocked": 13.312,
+    "ticks_at_cap": 494.99
    },
    "se": {
     "final_pnl": 1845.05406,
@@ -119,7 +129,9 @@
     "max_abs_inventory": 0.03987957825,
     "n_fills": 1.138756964,
     "n_crossed": 0.0,
-    "n_floored": 0.0
+    "n_floored": 0.0,
+    "n_blocked": 0.399585597,
+    "ticks_at_cap": 13.30644591
    }
   },
   "as": {
@@ -135,7 +147,9 @@
     "max_abs_inventory": 98.96,
     "n_fills": 352.33,
     "n_crossed": 0.0,
-    "n_floored": 0.29
+    "n_floored": 0.29,
+    "n_blocked": 7.454,
+    "ticks_at_cap": 452.552
    },
    "se": {
     "final_pnl": 1449.839672,
@@ -148,7 +162,9 @@
     "max_abs_inventory": 0.1862960344,
     "n_fills": 0.8712981815,
     "n_crossed": 0.0,
-    "n_floored": 0.29
+    "n_floored": 0.29,
+    "n_blocked": 0.2930862793,
+    "ticks_at_cap": 16.45366283
    }
   }
  },
@@ -256,6 +272,34 @@
      "median": -208.0,
      "win_rate": 0.0,
      "significant": true
+    },
+    "n_blocked": {
+     "label": "n_blocked",
+     "unit": "",
+     "n": 500,
+     "mean": 11.0,
+     "se": 0.512934893,
+     "ci95": [
+      9.99464761,
+      12.00535239
+     ],
+     "median": 11.0,
+     "win_rate": 0.814,
+     "significant": true
+    },
+    "ticks_at_cap": {
+     "label": "ticks_at_cap",
+     "unit": "",
+     "n": 500,
+     "mean": 58.8,
+     "se": 21.35609115,
+     "ci95": [
+      16.94206134,
+      100.6579387
+     ],
+     "median": 73.0,
+     "win_rate": 0.544,
+     "significant": true
     }
    }
   },
@@ -361,6 +405,34 @@
      ],
      "median": 14.0,
      "win_rate": 0.96,
+     "significant": true
+    },
+    "n_blocked": {
+     "label": "n_blocked",
+     "unit": "",
+     "n": 500,
+     "mean": 12.456,
+     "se": 0.3194185097,
+     "ci95": [
+      11.82993972,
+      13.08206028
+     ],
+     "median": 12.0,
+     "win_rate": 0.976,
+     "significant": true
+    },
+    "ticks_at_cap": {
+     "label": "ticks_at_cap",
+     "unit": "",
+     "n": 500,
+     "mean": 392.164,
+     "se": 10.83471385,
+     "ci95": [
+      370.9279608,
+      413.4000392
+     ],
+     "median": 366.0,
+     "win_rate": 0.968,
      "significant": true
     }
    }
@@ -468,6 +540,34 @@
      "median": -201.0,
      "win_rate": 0.0,
      "significant": true
+    },
+    "n_blocked": {
+     "label": "n_blocked",
+     "unit": "",
+     "n": 500,
+     "mean": 18.314,
+     "se": 0.4918318871,
+     "ci95": [
+      17.3500095,
+      19.2779905
+     ],
+     "median": 17.0,
+     "win_rate": 0.964,
+     "significant": true
+    },
+    "ticks_at_cap": {
+     "label": "ticks_at_cap",
+     "unit": "",
+     "n": 500,
+     "mean": 434.602,
+     "se": 16.95174831,
+     "ci95": [
+      401.3765733,
+      467.8274267
+     ],
+     "median": 446.0,
+     "win_rate": 0.892,
+     "significant": true
     }
    }
   },
@@ -574,6 +674,34 @@
      "median": 7.0,
      "win_rate": 0.89,
      "significant": true
+    },
+    "n_blocked": {
+     "label": "n_blocked",
+     "unit": "",
+     "n": 500,
+     "mean": 7.314,
+     "se": 0.2446682102,
+     "ci95": [
+      6.834450308,
+      7.793549692
+     ],
+     "median": 7.0,
+     "win_rate": 0.912,
+     "significant": true
+    },
+    "ticks_at_cap": {
+     "label": "ticks_at_cap",
+     "unit": "",
+     "n": 500,
+     "mean": 375.802,
+     "se": 13.52960169,
+     "ci95": [
+      349.2839807,
+      402.3200193
+     ],
+     "median": 344.5,
+     "win_rate": 0.916,
+     "significant": true
     }
    }
   }
@@ -584,6 +712,8 @@
   "t_stat": "mean(step pnl)/std(step pnl)*sqrt(n_steps); the whole-horizon Sharpe, not annualised",
   "max_drawdown": "<= 0; a positive difference means a shallower drawdown for arm a",
   "quote_crossings": "ticks on which a raw quote crossed the mid and was clamped to it (market_maker.MarketMaker.step)",
-  "floored_bids": "ticks on which the raw bid was below Config.min_price and was raised to it"
+  "floored_bids": "ticks on which the raw bid was below Config.min_price and was raised to it",
+  "blocked_fills": "fills that won their draw but were refused because the trade would take |q| past max_inventory",
+  "ticks_at_cap": "ticks that end with the position at the limit, where every fill on one side is refused"
  }
 }

@@ -305,6 +305,27 @@ def test_inventory_limit_is_respected():
         assert np.abs(s.inv_path).max() <= cfg.max_inventory
 
 
+def test_blocked_fills_and_ticks_at_the_cap_are_counted():
+    """A fill that wins its draw but would take |q| past the cap is refused
+    and counted in n_blocked. The benchmark's fill probability is the same
+    on every tick, so its fills plus blocked fills must equal the arrivals
+    whose draw beat that probability. ticks_at_cap counts the ticks that end
+    at the limit. Lifting the cap removes both, on every arm."""
+    cfg = Config(n_ticks=4_000, max_inventory=30)
+    m = simulate_market(cfg, 11)
+    s = run(FixedSpreadMaker(cfg), m)
+    k = metrics(s)
+    p = math.exp(-cfg.kappa * cfg.fixed_spread / 2)
+    eligible = int(np.count_nonzero(m.arrivals & (m.fill_draws < p)))
+    assert k["n_blocked"] > 0 and k["ticks_at_cap"] > 0
+    assert s.n_fills + s.n_blocked == eligible
+    assert k["ticks_at_cap"] == np.count_nonzero(np.abs(s.inv_path) == 30)
+    uncapped = Config(n_ticks=4_000, max_inventory=10 ** 6)
+    for S in ARMS:
+        k = metrics(run(S(uncapped), m))
+        assert k["n_blocked"] == 0 and k["ticks_at_cap"] == 0
+
+
 def test_inventory_limit_checks_the_position_after_the_trade():
     """A cap that is not a multiple of the order size: with orders of 10 and
     a cap of 45 every arm reaches 40 on this path and stops there. Checking
