@@ -1889,9 +1889,32 @@
   "max_drawdown": "<= 0, in dollars; a positive difference means a shallower drawdown for arm a. Scales with the price path, so a few high-price seeds dominate the mean",
   "log_max_drawdown": "ln|max_drawdown|; a paired difference is the per-seed log of the drawdown ratio b/a, free of the price level. pct = 1 - exp(-mean): the geometric-mean drawdown reduction",
   "pct": "benchmark basis: 100 * difference / |benchmark mean|; log basis: 100 * (1 - exp(-difference))",
+  "price_paths": "the simulated mid over these seeds (evaluate.py runs only); dollar P&L and drawdown scale with it",
   "quote_crossings": "ticks on which a raw quote crossed the mid and was clamped to it (market_maker.MarketMaker.step)",
   "floored_bids": "ticks on which the raw bid was below Config.min_price and was raised to it",
   "blocked_fills": "fills that won their draw but were refused because the trade would take |q| past max_inventory",
   "ticks_at_cap": "ticks that end with the position at the limit, where every fill on one side is refused"
+ },
+ "price_paths": {
+  "final_mid": {
+   "p5": 1.176822389,
+   "median": 37.10365851,
+   "p95": 892.4257807
+  },
+  "path_min": {
+   "lowest": 0.08243463487,
+   "seed": 37,
+   "share_below_1": 0.08
+  },
+  "path_max": {
+   "highest": 17620.87958,
+   "seed": 279,
+   "share_above_1000": 0.126
+  },
+  "dollar_drawdown": {
+   "corr_benchmark_drawdown_with_path_max": 0.9336248719,
+   "top_decile_by_path_max_share_of_benchmark_drawdown": 0.5027730905,
+   "highest_path_seed_share_of_as_vs_fixed_sum": 0.3610438183
+  }
  }
 }

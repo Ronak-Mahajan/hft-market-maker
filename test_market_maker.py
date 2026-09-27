@@ -474,6 +474,21 @@ def test_factorial_effects_sum_to_the_full_model_seed_by_seed():
             c["as_vs_fixed"]["metrics"][k]["mean"], rel=1e-9, abs=1e-9)
 
 
+def test_price_path_summary_matches_the_simulated_mids():
+    cfg = Config(n_ticks=300)
+    seeds = range(5)
+    arrays = evaluate.to_arrays(evaluate.evaluate(cfg, seeds))
+    pp = evaluate.price_paths(cfg, seeds, arrays)
+    prices = [simulate_market(cfg, s).prices for s in seeds]
+    highs = [p.max() for p in prices]
+    assert pp["final_mid"]["median"] == pytest.approx(np.median([p[-1] for p in prices]))
+    assert pp["path_max"]["highest"] == max(highs)
+    assert pp["path_max"]["seed"] == int(np.argmax(highs))
+    assert pp["path_min"]["lowest"] == min(p.min() for p in prices)
+    share = pp["dollar_drawdown"]["top_decile_by_path_max_share_of_benchmark_drawdown"]
+    assert 0 < share <= 1
+
+
 def test_evaluate_seeds_csv_round_trips(tmp_path):
     cfg = Config(n_ticks=200)
     rows = evaluate.evaluate(cfg, range(2))

@@ -11,7 +11,7 @@ python evaluate.py --seeds 500 --max-inventory none   # position limit lifted ->
 python evaluate.py --seeds 100 --gamma-sweep   # -> results_sweep.json
 python audit.py --seeds 200           # paired replay of the simpler rule -> audit_results.json
 python scripts/check_artifacts.py     # regenerated artifacts vs the committed copies
-python -m pytest -q                   # 32 tests
+python -m pytest -q                   # 33 tests
 ```
 
 ## The problem
@@ -72,6 +72,16 @@ yardstick that governs fills: with `κ = 10` the fill-decay length is
 inventory moves the near-side fill probability from 0.377 to 0.460 and the far
 side to 0.308. That is a material asymmetry, which is why the skew is measured
 rather than dismissed; `--gamma-sweep` shows how the answer moves with `γ`.
+
+**Price level.** In the lean, `σ` stands in for the paper's dollar volatility
+(`σS` for a GBM mid), so the lean is a fixed dollar amount, at most $0.02,
+whatever the price. The price itself ranges widely. Over the 500 seeds the
+final mid has a 5th percentile of $1.18, a median of $37.10 and a 95th
+percentile of $892; the path rises above $1,000 on 12.6% of seeds (highest
+$17,621, seed 279) and falls below $1 on 8% (lowest $0.08, seed 37). Inventory
+σ, fills and spread captured are counted in shares or in fixed dollar offsets
+from the mid, so they do not scale with the price level. Dollar P&L and
+drawdown do (`price_paths` in `results.json`).
 
 ## The result
 
@@ -267,8 +277,9 @@ is the cleanest test of the skew on its own.
 - The volatility regime (σ = 0.02 per tick over 10,000 ticks, horizon log-std
   2.0) is far wider than anything tradable and 100× the paper's own example;
   P&L is inventory noise by construction, which is why the P&L rows are never
-  significant. Rescaling the regime is deliberately not done here, because it
-  would change every published number at once; it is the next study.
+  significant. Nothing is rescaled to the price path, so the fixed 0.10 spread
+  is under 0.1 basis point of the highest mid and more than the whole price at
+  the lowest (see Price level above).
 - One asset, one maker, no latency, no fees.
 - `simulation.ipynb` implements and plots the simpler rule audited by `audit.py`,
   not the four arms; its figures are not of the current strategies.
@@ -282,7 +293,7 @@ evaluate.py            paired four-arm evaluation, 2x2 factorial, gamma sweep, p
 audit.py               paired multi-seed replay of the simpler skew rule
 scripts/
   check_artifacts.py   regenerated artifacts vs the committed copies; CI fails on a difference
-test_market_maker.py   28 tests: CRN fill-subset property, P&L accounting from the
+test_market_maker.py   29 tests: CRN fill-subset property, P&L accounting from the
                        fill record, closed-form spread, skew units, crossing guard
                        (clamp, count, and price cap), price floor, inventory cap,
                        config validation, results schema

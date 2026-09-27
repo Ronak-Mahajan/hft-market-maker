@@ -44,15 +44,21 @@ the skew-only arm because it is the cleanest test of the skew on its own.
 
 Units
 -----
-sigma is the per-tick log-volatility and (T - t) is the normalised fraction of
-the horizon remaining, tau = 1 - t/n_ticks in [0, 1]. So gamma*sigma^2*tau is
-NOT the paper's formula in tick units (that would carry (n_ticks - t) and be
-10,000x larger at the defaults; in the paper's own units at these parameters the
-skew would be hundreds of dollars a share). Read gamma as a risk aversion in
-per-horizon units. On the yardstick that governs fills, 1/kappa = $0.10, the
-default lean of 100 * 0.5 * 0.02^2 = $0.02 at max inventory is a 20% shift in
-the fill-decay length, which moves the near-side fill probability from 0.377 to
-0.460 and the far side to 0.308. The skew is material; see the units test.
+sigma is the per-tick log-volatility, and in the lean it stands in for the
+paper's dollar volatility (sigma * S for a GBM mid). The lean q*gamma*sigma^2*tau
+is therefore a dollar amount that does not depend on the price level: at most
+100 * 0.5 * 0.02^2 = $0.02 at the defaults, whether the mid is $1 or $1,000,
+while the price risk of holding q shares scales with the mid.
+
+(T - t) is the normalised fraction of the horizon remaining,
+tau = 1 - t/n_ticks in [0, 1]. So gamma*sigma^2*tau is NOT the paper's formula
+in tick units (that would carry (n_ticks - t) and be 10,000x larger at the
+defaults; in the paper's own units at these parameters the skew would be
+hundreds of dollars a share). Read gamma as a risk aversion in per-horizon
+units. On the yardstick that governs fills, 1/kappa = $0.10, the $0.02 lean at
+max inventory is a 20% shift in the fill-decay length, which moves the
+near-side fill probability from 0.377 to 0.460 and the far side to 0.308. The
+skew is material; see the units test.
 
 Reproducibility
 ---------------

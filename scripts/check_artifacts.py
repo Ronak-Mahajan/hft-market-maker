@@ -15,8 +15,8 @@ with status 1 if any of them differs.
 What counts as a difference:
 
 - Discrete content must match exactly: JSON structure, keys, list lengths,
-  strings, booleans and integers; the win_rate and profitable_share fractions,
-  which count seeds; and the seed, arm, fills, max_abs_inventory,
+  strings, booleans and integers; the win_rate, profitable_share,
+  share_below_1 and share_above_1000 fractions, which count seeds; and the seed, arm, fills, max_abs_inventory,
   quote_crossings, floored_bids, blocked_fills and ticks_at_cap columns of
   the per-seed CSVs.
 - Every other float must agree to a relative tolerance of 1e-9. The
@@ -50,7 +50,8 @@ ARTIFACTS = JSON_ARTIFACTS + CSV_ARTIFACTS
 RTOL = 1e-9
 
 # JSON float fields that are fractions of a seed count: compared exactly.
-EXACT_JSON_KEYS = frozenset({"win_rate", "profitable_share"})
+EXACT_JSON_KEYS = frozenset({"win_rate", "profitable_share", "share_below_1",
+                             "share_above_1000"})
 # results_seeds.csv columns holding identifiers or counts: compared exactly,
 # as text.
 EXACT_CSV_COLUMNS = frozenset({"seed", "arm", "fills", "max_abs_inventory",

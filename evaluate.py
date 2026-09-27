@@ -283,6 +283,43 @@ def to_arrays(rows: list[tuple[int, str, dict[str, float]]]
             for slug, cols in acc.items()}
 
 
+def price_paths(cfg: Config, seeds, arrays: dict[str, dict[str, np.ndarray]]
+                ) -> dict:
+    """Where the simulated mid goes over these seeds, and how much of the
+    dollar drawdown the high-price paths carry. The lean and the spreads are
+    fixed dollar amounts, so inventory sigma, fills and edge do not depend
+    on the price level; dollar P&L and drawdown scale with it. `arrays`
+    must come from evaluate() over the same seeds, in order."""
+    seeds = list(seeds)
+    final, low, high = (np.empty(len(seeds)) for _ in range(3))
+    for i, seed in enumerate(seeds):
+        p = simulate_market(cfg, seed).prices
+        final[i], low[i], high[i] = p[-1], p.min(), p.max()
+    bench_dd = -arrays[BENCHMARK]["max_drawdown"]
+    gain = (arrays[AvellanedaStoikovMaker.slug]["max_drawdown"]
+            - arrays[BENCHMARK]["max_drawdown"])
+    top = int(np.argmax(high))
+    decile = np.argsort(high)[-max(1, len(seeds) // 10):]
+    return {
+        "final_mid": {"p5": float(np.percentile(final, 5)),
+                      "median": float(np.median(final)),
+                      "p95": float(np.percentile(final, 95))},
+        "path_min": {"lowest": float(low.min()),
+                     "seed": seeds[int(np.argmin(low))],
+                     "share_below_1": float((low < 1.0).mean())},
+        "path_max": {"highest": float(high.max()), "seed": seeds[top],
+                     "share_above_1000": float((high > 1000.0).mean())},
+        "dollar_drawdown": {
+            "corr_benchmark_drawdown_with_path_max":
+                float(np.corrcoef(bench_dd, high)[0, 1]),
+            "top_decile_by_path_max_share_of_benchmark_drawdown":
+                float(bench_dd[decile].sum() / bench_dd.sum()),
+            "highest_path_seed_share_of_as_vs_fixed_sum":
+                float(gain[top] / gain.sum()),
+        },
+    }
+
+
 def evaluate(cfg: Config, seeds) -> list[tuple[int, str, dict[str, float]]]:
     """Run all four arms on every seed, paired. Returns per-seed rows."""
     rows = []
@@ -332,6 +369,8 @@ def build_report(cfg: Config, rows, n_seeds: int) -> dict:
                                 "geometric-mean drawdown reduction",
             "pct": "benchmark basis: 100 * difference / |benchmark mean|; log "
                    "basis: 100 * (1 - exp(-difference))",
+            "price_paths": "the simulated mid over these seeds (evaluate.py "
+                           "runs only); dollar P&L and drawdown scale with it",
             "quote_crossings": "ticks on which a raw quote crossed the mid and "
                                "was clamped to it (market_maker.MarketMaker.step)",
             "floored_bids": "ticks on which the raw bid was below "
@@ -544,6 +583,7 @@ def main() -> None:
 
     rows = evaluate(cfg, range(args.seeds))
     rep = build_report(cfg, rows, args.seeds)
+    rep["price_paths"] = price_paths(cfg, range(args.seeds), to_arrays(rows))
     print_report(rep)
     write_json(json_path, rep)
     write_seeds_csv(csv_path, rows)
