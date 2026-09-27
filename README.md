@@ -47,21 +47,27 @@ draws**:
 |---|---|---|---|
 | `fixed` | 0.10, hand-picked | none | the benchmark |
 | `spread_matched` | the model spread, at τ = 1 | none | what quoting wider does on its own |
-| `skew_only` | 0.10, hand-picked | model skew | what the skew does at the benchmark's own volume |
+| `skew_only` | 0.10, hand-picked | model skew | what the skew does at the benchmark spread |
 | `as` | the model spread | model skew | the full model |
 
-and four paired comparisons, each reported for every metric with a 95%
+and five paired comparisons, each reported for every metric with a 95%
 confidence interval and a win rate:
 
 ```
-spread_matched vs fixed          spread effect
-skew_only      vs fixed          skew effect at the benchmark spread
-as             vs fixed          full model vs benchmark
-as             vs spread_matched skew effect at the model spread
+spread_matched vs fixed            the wider spread, skew off
+as             vs spread_matched   the skew, at the model spread
+as             vs fixed            the full model
+skew_only      vs fixed            the skew, at the benchmark spread
+as             vs skew_only        the wider spread, skew on
 ```
 
-`(as − fixed) = (spread_matched − fixed) + (as − spread_matched)` seed by seed,
-so the last two rows are an exact decomposition of the first.
+The four arms are a 2x2 design, spread by skew, so `as − fixed` splits into a
+spread step and a skew step in either order: rows 1 and 2 sum to row 3 on
+every seed, and so do rows 4 and 5. The two orders give different splits
+whenever the skew is worth a different amount at the two spreads, so
+`results.json` also reports the factorial main effects (each step averaged
+over both orders, again summing to `as − fixed`) and the interaction,
+`(as − spread_matched) − (skew_only − fixed)`, each with its own paired CI.
 
 **Units.** `σ` is the per-tick log-volatility and `(T − t)` is the normalised
 fraction of the horizon remaining, `τ = 1 − t/n_ticks ∈ [0, 1]`, so `γσ²τ` is
@@ -87,49 +93,88 @@ drawdown do (`price_paths` in `results.json`).
 
 500 paired seeds (0 to 499), γ = 0.5, all four arms on the same market draws.
 Every number below is read out of `results.json` unless another artifact is
-named. CI reruns `evaluate.py --seeds 500`, the γ sweep and the audit on every
-push and fails if the result differs from the committed files
-(`scripts/check_artifacts.py`: floats to a relative 1e-9, counts and flags
-exactly).
+named. CI reruns `evaluate.py --seeds 500` (with and without the position
+limit), the γ sweep and the audit on every push and fails if the result
+differs from the committed files (`scripts/check_artifacts.py`: floats to a
+relative 1e-9, counts and flags exactly).
 
-**Of the 17.0% inventory-σ reduction the full model buys over the benchmark,
-12.1 points are the wider spread and 4.9 points are the skew. For maximum
-drawdown the split reverses: quoting wider on its own moves drawdown by 1,994
-with a 95% CI that straddles zero, while the skew at the same spread moves it
-1,977 with a CI that does not. The published 14% drawdown reduction is carried
-by the skew, not by the wider spread.**
+**The full model cuts inventory σ 17.0% against the benchmark, on 36% fewer
+fills.** Averaged over both orderings, the wider spread accounts for 10.2
+points of that and the skew for 6.8. The two overlap: the skew is worth 8.7%
+at the benchmark spread and 4.9% at the model spread, an interaction of −3.8
+points whose CI excludes zero.
+
+**Drawdown.** The full model's maximum drawdown is 13.6% shallower in mean
+dollars, but dollar drawdown follows the price path (see Price level).
+Measured per seed as a ratio, which removes the price level, it is 20.6%
+[17.5, 23.5] shallower. Averaged over both orderings, 6.7% of that comes from
+the wider spread and 14.9% from the skew, and the skew's share is the larger
+with a CI that excludes zero.
+
+**P&L.** Realized P&L does not resolve in any comparison, but its expected
+value here is the spread captured, and that does: the full model captures
+23.9% more spread per run (+66.0 [64.9, 67.0]), higher on every seed.
 
 ### Per-arm means (500 seeds)
 
-| arm | spread | inventory σ | max drawdown | fills | final P&L | t-stat |
-|---|---|---|---|---|---|---|
-| `fixed` | 0.100 | 50.5 | −29,177 | 553.0 | −1,423 | −0.01 |
-| `spread_matched` | 0.195 | 44.4 | −27,184 | 344.6 | −1,547 | 0.04 |
-| `skew_only` | 0.100 | 46.1 | −26,337 | 566.6 | −1,465 | 0.01 |
-| `as` | 0.195 | 42.0 | −25,206 | 352.3 | −1,938 | 0.04 |
+| arm | spread | inventory σ | max drawdown | fills | spread captured | final P&L | t-stat |
+|---|---|---|---|---|---|---|---|
+| `fixed` | 0.100 | 50.5 | −29,177 | 553.0 | 276.5 | −1,423 | −0.01 |
+| `spread_matched` | 0.195 | 44.4 | −27,184 | 344.6 | 336.6 | −1,547 | 0.04 |
+| `skew_only` | 0.100 | 46.1 | −26,337 | 566.6 | 280.7 | −1,465 | 0.01 |
+| `as` | 0.195 | 42.0 | −25,206 | 352.3 | 342.5 | −1,938 | 0.04 |
 
 ### Paired differences, 95% CI, win rate
 
-Positive means the first-named arm is better. The two middle rows of each block
-sum, seed by seed, to the `as − fixed` row.
+Positive means the first-named arm is better. In each block rows 1 and 2 sum,
+seed by seed, to row 3, and so do rows 4 and 5. Outside the ratio table,
+percentages are of the benchmark's mean and add the same way. The main
+effects average the two orderings; the interaction is row 2 minus row 4.
 
 **Inventory σ** (benchmark 50.5)
 
 | comparison | isolates | difference | 95% CI | wins | sig. |
 |---|---|---|---|---|---|
-| `spread_matched − fixed` | the wider spread | **6.13** (12.1%) | [5.28, 6.98] | 73% | yes |
+| `spread_matched − fixed` | the wider spread, skew off | **6.13** (12.1%) | [5.28, 6.98] | 73% | yes |
 | `as − spread_matched` | the skew, at the model spread | **2.46** (4.9%) | [2.05, 2.87] | 71% | yes |
 | `as − fixed` | the full model | **8.59** (17.0%) | [7.83, 9.35] | 85% | yes |
 | `skew_only − fixed` | the skew, at the benchmark spread | **4.40** (8.7%) | [3.98, 4.82] | 85% | yes |
+| `as − skew_only` | the wider spread, skew on | **4.19** (8.3%) | [3.55, 4.83] | 72% | yes |
+| spread main effect | both orderings averaged | **5.16** (10.2%) | [4.45, 5.87] | 73% | yes |
+| skew main effect | both orderings averaged | **3.43** (6.8%) | [3.11, 3.76] | 85% | yes |
+| interaction | the skew at the model spread minus at the benchmark spread | **−1.94** (−3.8%) | [−2.45, −1.44] | 36% | yes |
 
-**Maximum drawdown** (benchmark −29,177)
+**Maximum drawdown, per-seed ratio.** For each seed, the log of the ratio of
+the two arms' drawdowns, shown as the geometric-mean reduction. The logs add,
+so the reductions compound: (1 − 7.7%)(1 − 13.9%) ≈ 1 − 20.6%.
+
+| comparison | reduction | 95% CI | wins | sig. |
+|---|---|---|---|---|
+| `spread_matched − fixed` | **7.7%** | [4.2, 11.1] | 57% | yes |
+| `as − spread_matched` | **13.9%** | [12.1, 15.7] | 79% | yes |
+| `as − fixed` | **20.6%** | [17.5, 23.5] | 74% | yes |
+| `skew_only − fixed` | **15.8%** | [14.1, 17.4] | 83% | yes |
+| `as − skew_only` | **5.6%** | [2.2, 9.0] | 54% | yes |
+| spread main effect | **6.7%** | [3.4, 9.8] | 56% | yes |
+| skew main effect | **14.9%** | [13.6, 16.1] | 86% | yes |
+| interaction | −2.2% | [−5.0, +0.4] | 44% | no |
+
+The skew main effect exceeds the spread main effect by 0.092 [0.054, 0.129]
+in logs.
+
+**Maximum drawdown, dollars** (benchmark −29,177). Dollar drawdown follows
+the price path: the benchmark's drawdown correlates 0.93 with the path's
+peak, and seed 279, whose mid peaks at $17,621, contributes 36% of the summed
+`as − fixed` difference. These means are dominated by the few high-price
+seeds, which is why two of the rows below have CIs that span zero.
 
 | comparison | difference | 95% CI | wins | sig. |
 |---|---|---|---|---|
-| `spread_matched − fixed` | 1,994 (6.8%) | [−2,488, +6,475] | 57% | **no** |
+| `spread_matched − fixed` | 1,994 (6.8%) | [−2,488, +6,475] | 57% | no |
 | `as − spread_matched` | **1,977** (6.8%) | [665, 3,290] | 79% | yes |
 | `as − fixed` | **3,971** (13.6%) | [521, 7,421] | 74% | yes |
 | `skew_only − fixed` | **2,840** (9.7%) | [2,226, 3,455] | 83% | yes |
+| `as − skew_only` | 1,131 (3.9%) | [−2,049, +4,310] | 54% | no |
 
 **Fills** (benchmark 553.0)
 
@@ -139,27 +184,52 @@ sum, seed by seed, to the `as − fixed` row.
 | `as − spread_matched` | +7.8 (+1.4%) | [+7.2, +8.3] | 89% | yes |
 | `as − fixed` | −200.7 (−36.3%) | [−202.2, −199.1] | 0% | yes |
 | `skew_only − fixed` | +13.6 (+2.5%) | [+12.9, +14.3] | 96% | yes |
+| `as − skew_only` | −214.3 (−38.7%) | [−215.7, −212.8] | 0% | yes |
 
-**Final P&L and t-stat: nothing is significant in any comparison.**
-`as − fixed` P&L is −515 [−3,994, +2,965] at a 54% win rate; the largest
-t-stat difference is 0.052 [−0.008, 0.113]. P&L here is inventory noise by
-construction (see Limitations), so the model reduces risk and does not
-demonstrably change profit.
+**Spread captured** (benchmark 276.5): for each fill, its distance from that
+tick's mid times the order size, summed over the run.
+
+| comparison | difference | 95% CI | wins | sig. |
+|---|---|---|---|---|
+| `spread_matched − fixed` | +60.1 (+21.7%) | [+58.9, +61.3] | 100% | yes |
+| `as − spread_matched` | +5.9 (+2.1%) | [+5.3, +6.4] | 85% | yes |
+| `as − fixed` | **+66.0 (+23.9%)** | [+64.9, +67.0] | 100% | yes |
+| `skew_only − fixed` | +4.2 (+1.5%) | [+3.8, +4.6] | 85% | yes |
+| `as − skew_only` | +61.8 (+22.3%) | [+60.7, +62.8] | 100% | yes |
+
+**Final P&L and t-stat: no comparison resolves.** `as − fixed` P&L is −515
+[−3,994, +2,965] at a 54% win rate; the largest t-stat difference is 0.052
+[−0.008, 0.113]. Realized P&L is the spread captured plus the inventory marked
+to market (`final_pnl = edge + inventory_pnl` on every run). A fill depends
+only on its quote's dollar offset from the mid, so the inventory path does not
+depend on the price path (apart from the floored bids on seed 37), and with
+symmetric order flow the inventory term has zero mean: expected P&L is the
+spread captured. That term is also what hides the spread captured in realized
+P&L. Its paired standard deviation is about 40,000 per run, and for
+`as − fixed` it comes to −581 [−4,060, +2,899] against +66.0 of spread
+captured.
 
 ### What the decomposition actually says
 
-- **The skew does not work by taking fewer fills.** At the benchmark's own spread
-  (`skew_only`) it takes 2.5% **more** fills than the benchmark while cutting
-  inventory σ 8.7% and drawdown 9.7%. Leaning the quotes makes the near side
-  more attractive exactly when inventory wants unwinding, and the extra
-  unwinding fills are why the fill count goes up rather than down.
-- **The wider spread buys inventory dispersion, not drawdown protection.**
-  It removes 37.7% of the fills, which mechanically shrinks inventory σ by a
-  significant 12.1%, but its drawdown CI spans zero in both directions: on 43%
-  of seeds the benchmark drew down less.
-- **Together they are additive, not synergistic.** `(as − fixed)` equals
-  `(spread_matched − fixed) + (as − spread_matched)` exactly, seed by seed, by
-  construction of the paired design; no interaction term is hiding in the 17%.
+- **The skew's extra fills come from the position limit.** At the benchmark's
+  own spread (`skew_only`) the skew takes 2.5% more fills than the benchmark
+  while cutting inventory σ 8.7% and drawdown 15.8% (per-seed ratio). A maker
+  at the ±100 limit refuses every fill that would add to its position, and
+  `skew_only` ends 495 of 10,000 ticks there against the benchmark's 887. The
+  benchmark refuses 25.8 fills per seed that way and `skew_only` 13.3, which
+  accounts for 12.5 of the +13.6. With the limit lifted
+  (`results_uncapped.json`) the difference is +1.4 [1.0, 1.9].
+- **The wider spread does most of the inventory-σ work and about a third of the
+  drawdown work.** Its main effect is 10.2 of the 17.0 points of inventory σ,
+  and on the drawdown ratio 6.7% against the skew's 14.9% (0.069 of 0.230 in
+  logs). It removes 37.7% of the fills and captures 21.7% more spread per run.
+  In dollars its drawdown CIs span zero, since the dollar mean follows the few
+  high-price paths.
+- **The two effects overlap.** At the wider spread there is less inventory to
+  lean against, and the skew removes 2.46 points of σ there against 4.40 at
+  the benchmark spread: an interaction of −1.94 [−2.45, −1.44], with fills
+  −5.8 [−6.6, −5.0]. The drawdown interaction is not resolved (per-seed ratio
+  −2.2% [−5.0, +0.4]).
 
 ### The answer depends on γ
 
@@ -170,38 +240,38 @@ and the guard clamped it. They are reported separately because the two skewing
 arms cross at very different γ: `skew_only` applies the same lean around a
 half-spread about half as wide, so it crosses first.
 
-| γ | model spread | spread effect | skew effect (at the model spread) | total | crossings `as` | crossings `skew_only` |
-|---|---|---|---|---|---|---|
-| 0.05 | 0.200 | 7.85 | 0.21 (not sig.) | 8.06 | 0 | 0 |
-| 0.1 | 0.199 | 7.87 | 0.16 (not sig.) | 8.03 | 0 | 0 |
-| 0.2 | 0.198 | 7.80 | 0.57 | 8.37 | 0 | 0 |
-| 0.5 | 0.195 | 7.58 | 2.41 | 9.99 | 0 | 0 |
-| 1.0 | 0.191 | 7.32 | 5.44 | 12.76 | 0 | 0 |
-| 2.0 | 0.183 | 6.60 | 11.35 | 17.95 | 0 | 17.4 |
-| 5.0 | 0.164 | 5.50 | 20.14 | 25.64 | 17.5 | 438.1 |
+| γ | model spread | spread effect (skew off) | skew at the model spread | skew at the benchmark spread | total | crossings `as` | crossings `skew_only` |
+|---|---|---|---|---|---|---|---|
+| 0.05 | 0.200 | 7.85 | 0.21 (not sig.) | 0.61 | 8.06 | 0 | 0 |
+| 0.1 | 0.199 | 7.87 | 0.16 (not sig.) | 1.01 | 8.03 | 0 | 0 |
+| 0.2 | 0.198 | 7.80 | 0.57 | 1.73 | 8.37 | 0 | 0 |
+| 0.5 | 0.195 | 7.58 | 2.41 | 4.26 | 9.99 | 0 | 0 |
+| 1.0 | 0.191 | 7.32 | 5.44 | 8.59 | 12.76 | 0 | 0 |
+| 2.0 | 0.183 | 6.60 | 11.35 | 14.88 | 17.95 | 0 | 17.4 |
+| 5.0 | 0.164 | 5.50 | 20.14 | 23.58 | 25.64 | 17.5 | 438.1 |
 
 The spread effect is nearly flat because the model spread barely moves over two
-decades of γ. The skew effect is **indistinguishable from zero at γ ≤ 0.1** and
-becomes the whole story by γ = 5, but by then part of what is being measured is
-the guard, not the model: the reservation lean has outgrown the half-spread, so
-the `as` arm is clamped to the mid on ~17.5 ticks per seed and `skew_only` on
-~438 of its 10,000. **No arm crosses the mid anywhere at γ ≤ 1**, so those rows
-are the clean ones; the γ ≥ 2 rows are published because a sweep should show
-where a model stops behaving like the model, not because they are a better
-setting. So "does the skew pay" has no γ-free answer; γ = 0.5 is the repo's
-default and the number quoted above.
+decades of γ. The skew effect at the model spread is **indistinguishable from
+zero at γ ≤ 0.1** (at the benchmark spread it is 0.61 and 1.01, small but
+resolved) and becomes the whole story by γ = 5, but by then part of what is
+being measured is the guard, not the model: the reservation lean has outgrown
+the half-spread, so the `as` arm is clamped to the mid on ~17.5 ticks per seed
+and `skew_only` on ~438 of its 10,000. **No arm crosses the mid anywhere at
+γ ≤ 1**, so those rows are the clean ones; the γ ≥ 2 rows are published
+because a sweep should show where a model stops behaving like the model, not
+because they are a better setting. So "does the skew pay" has no γ-free
+answer; γ = 0.5 is the repo's default and the number quoted above.
 
-**The 17% / 14% / 36% figures quoted in the profile README and in the
-`quoter.py` docstring of neural-options-lab are the `as − fixed` row: the full
-model against the benchmark. The decomposition puts 12.1 of those 17
-inventory-σ points on the wider spread and 4.9 on the inventory skew.**
-
-Per-arm means and every pairwise comparison live in `results.json` (schema v3:
-`arms` keyed by arm, `comparisons` keyed by comparison then by metric). The raw
-per-seed metrics for every arm are in `results_seeds.csv` (`seed, arm,
-inventory_sigma, max_drawdown, fills, final_pnl, t_stat, max_abs_inventory,
-quote_crossings, floored_bids, edge, inventory_pnl`), so any number in the
-tables above can be recomputed from the committed artifact.
+Per-arm means, every pairwise comparison and the factorial effects live in
+`results.json` (schema v3: `arms` keyed by arm, `comparisons` keyed by
+comparison then by metric, `factorial` keyed by effect then by metric, each
+summary with its percentage under `pct`, and the price range under
+`price_paths`). `results_uncapped.json` is the same run with the position
+limit lifted. The raw per-seed metrics for every arm are in
+`results_seeds.csv` (`seed, arm, inventory_sigma, max_drawdown, fills,
+final_pnl, t_stat, max_abs_inventory, quote_crossings, floored_bids, edge,
+inventory_pnl, blocked_fills, ticks_at_cap`), so any number in the tables
+above can be recomputed from the committed artifacts.
 
 The seed count was not reduced for CI: the whole job (tests, the 500-seed
 four-arm run, its 500-seed rerun without the position limit, the 100-seed γ
@@ -216,10 +286,11 @@ one-seed comparison measures the seed. Two choices make the difference
 resolvable:
 
 1. **Common random numbers.** Fill draws are generated with the market, not
-   inside the strategy loop, so every maker faces identical luck. A quote that
-   is always further from the mid than the benchmark's can only be filled on a
-   tick where the benchmark's would have been (same uniform, smaller
-   probability), and the test suite asserts exactly that, tick by tick.
+   inside the strategy loop, so every maker faces identical luck. Absent the
+   position limit, a quote that is always further from the mid than the
+   benchmark's can only be filled on a tick where the benchmark's would have
+   been (same uniform, smaller probability); the test suite asserts that tick
+   by tick with the limit lifted.
 2. **Distributions, not point estimates.** Every number is a mean over paired
    seeds with a 95% confidence interval and a win rate, and the per-seed arrays
    are committed.
@@ -257,15 +328,24 @@ is the cleanest test of the skew on its own.
 - **`t_stat`, not "Sharpe".** `mean(step P&L) / std(step P&L) * √n` is the
   whole-horizon Sharpe, numerically the t-statistic of the mean step P&L. It is
   not annualised, and it is not comparable to an annualised Sharpe ratio.
-- **`--gamma` never overwrites the headline.** A `--gamma g` run writes
-  `results_gamma_<g>.json` and `results_seeds_gamma_<g>.csv`.
+- **`--gamma` and `--max-inventory` never overwrite the headline.** A
+  `--gamma g` run writes `results_gamma_<g>.json` and
+  `results_seeds_gamma_<g>.csv`; `--max-inventory none` writes
+  `results_uncapped.json` and `results_seeds_uncapped.csv`, and
+  `--max-inventory N` writes `results_cap_<N>.json` and
+  `results_seeds_cap_<N>.csv`.
 - **Inventory cap.** All arms cap `|q|` at 100 (`max_inventory`), which is itself
   a crude inventory control that makes the benchmark safer than a true
   unconstrained symmetric quoter, and it binds hard. The `max_abs_inventory`
   column of `results_seeds.csv` touches the cap on 100% of seeds for `fixed`,
-  99.2% for `skew_only`, 98.0% for `spread_matched` and 92.6% for `as`, so part
-  of what every arm is measured against is a position limit rather than a
-  quoting rule. The tests lift it where it would interfere.
+  99.2% for `skew_only`, 98.0% for `spread_matched` and 92.6% for `as`, and the
+  benchmark ends 8.9% of all ticks there (`ticks_at_cap`), so part of what
+  every arm is measured against is a position limit rather than a quoting
+  rule. With the limit lifted (`results_uncapped.json`, the same 500 seeds)
+  the full model cuts inventory σ 43.2% of the benchmark's 90.0, and the main
+  effects are 16.2 points for the spread and 27.0 for the skew: without the
+  limit the skew is the larger part. The tests lift it where it would
+  interfere.
 
 ## Limitations
 
@@ -275,11 +355,12 @@ is the cleanest test of the skew on its own.
 - The mid is exogenous GBM: quoting does not move the price, and there is no
   adverse selection from informed flow beyond what the fill intensity implies.
 - The volatility regime (σ = 0.02 per tick over 10,000 ticks, horizon log-std
-  2.0) is far wider than anything tradable and 100× the paper's own example;
-  P&L is inventory noise by construction, which is why the P&L rows are never
-  significant. Nothing is rescaled to the price path, so the fixed 0.10 spread
-  is under 0.1 basis point of the highest mid and more than the whole price at
-  the lowest (see Price level above).
+  2.0) is far wider than anything tradable and 100× the paper's own example.
+  Realized P&L is dominated by the zero-mean inventory term, which is why the
+  realized P&L rows never resolve and the spread-captured rows do. Nothing is
+  rescaled to the price path, so the fixed 0.10 spread is under 0.1 basis
+  point of the highest mid and more than the whole price at the lowest (see
+  Price level above).
 - One asset, one maker, no latency, no fees.
 - `simulation.ipynb` implements and plots the simpler rule audited by `audit.py`,
   not the four arms; its figures are not of the current strategies.
@@ -294,9 +375,11 @@ audit.py               paired multi-seed replay of the simpler skew rule
 scripts/
   check_artifacts.py   regenerated artifacts vs the committed copies; CI fails on a difference
 test_market_maker.py   29 tests: CRN fill-subset property, P&L accounting from the
-                       fill record, closed-form spread, skew units, crossing guard
-                       (clamp, count, and price cap), price floor, inventory cap,
-                       config validation, results schema
+                       fill record, the spread-captured and inventory P&L split,
+                       closed-form spread, skew units, crossing guard (clamp,
+                       count, and price cap), price floor, inventory cap and
+                       blocked fills, config validation, factorial identities,
+                       results schema
 test_artifacts.py      4 tests: 10-digit float rounding in the writers, and the
                        tolerance and exact-match rules of check_artifacts.py
 results.json           per-arm means, every pairwise comparison and the factorial
