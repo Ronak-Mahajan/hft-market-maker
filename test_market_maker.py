@@ -398,12 +398,13 @@ def test_wider_quotes_cost_fills():
 
 # --- evaluate.py ------------------------------------------------------------
 
-def test_evaluate_report_schema_v2():
+def test_evaluate_report_schema_v3():
     cfg = Config(n_ticks=300)
     rows = evaluate.evaluate(cfg, range(3))
     assert len(rows) == 3 * len(ARMS)
     rep = evaluate.build_report(cfg, rows, 3)
-    assert rep["schema"] == 2 and rep["n_seeds"] == 3
+    assert rep["schema"] == 3 and rep["n_seeds"] == 3
+    assert set(rep["factorial"]["effects"]) == {e for e, _ in evaluate.FACTORIAL}
     assert set(rep["arms"]) == {cls.slug for cls in ARMS}
     assert set(rep["comparisons"]) == {f"{a}_vs_{b}" for a, b, _ in evaluate.COMPARISONS}
     c = rep["comparisons"]["as_vs_fixed"]["metrics"]
@@ -441,6 +442,36 @@ def test_log_drawdown_comparison_is_the_per_seed_drawdown_ratio():
     assert b["pct"]["mean"] == pytest.approx(
         100 * b["mean"] / arrays["fixed"]["inventory_std"].mean())
     assert "pct" not in c["t_stat"]
+
+
+def test_factorial_effects_sum_to_the_full_model_seed_by_seed():
+    """Both orderings of the two steps, and the two main effects, sum to
+    as - fixed on every seed, for every metric; the orderings differ by the
+    interaction. The telescoping identity holds for any four numbers, which
+    is why the interaction has to be measured rather than assumed away."""
+    cfg = Config(n_ticks=300)
+    arrays = evaluate.to_arrays(evaluate.evaluate(cfg, range(6)))
+    for k, higher in evaluate.METRICS:
+        def arm(slug):
+            return evaluate.oriented(arrays, slug, k, higher)
+        f, sm, so, a = arm("fixed"), arm("spread_matched"), arm("skew_only"), arm("as")
+        eff = evaluate.factorial_effects(arrays, k, higher)
+        total = a - f
+        np.testing.assert_allclose((sm - f) + (a - sm), total, rtol=1e-12, atol=1e-9)
+        np.testing.assert_allclose((so - f) + (a - so), total, rtol=1e-12, atol=1e-9)
+        np.testing.assert_allclose(eff["spread_main"] + eff["skew_main"], total,
+                                   rtol=1e-12, atol=1e-9)
+        np.testing.assert_allclose((a - sm) - (so - f), eff["interaction"],
+                                   rtol=1e-12, atol=1e-9)
+        np.testing.assert_allclose(eff["skew_main"] - (so - f),
+                                   0.5 * eff["interaction"], rtol=1e-9, atol=1e-9)
+    rep = evaluate.build_report(cfg, evaluate.evaluate(cfg, range(6)), 6)
+    fx = rep["factorial"]["effects"]
+    c = rep["comparisons"]
+    for k, _ in evaluate.METRICS:
+        assert (fx["spread_main"]["metrics"][k]["mean"]
+                + fx["skew_main"]["metrics"][k]["mean"]) == pytest.approx(
+            c["as_vs_fixed"]["metrics"][k]["mean"], rel=1e-9, abs=1e-9)
 
 
 def test_evaluate_seeds_csv_round_trips(tmp_path):

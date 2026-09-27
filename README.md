@@ -10,7 +10,7 @@ python evaluate.py --seeds 500        # four paired arms -> results.json, result
 python evaluate.py --seeds 100 --gamma-sweep   # -> results_sweep.json
 python audit.py --seeds 200           # paired replay of the simpler rule -> audit_results.json
 python scripts/check_artifacts.py     # regenerated artifacts vs the committed copies
-python -m pytest -q                   # 30 tests
+python -m pytest -q                   # 31 tests
 ```
 
 ## The problem
@@ -185,7 +185,7 @@ default and the number quoted above.
 model against the benchmark. The decomposition puts 12.1 of those 17
 inventory-σ points on the wider spread and 4.9 on the inventory skew.**
 
-Per-arm means and every pairwise comparison live in `results.json` (schema v2:
+Per-arm means and every pairwise comparison live in `results.json` (schema v3:
 `arms` keyed by arm, `comparisons` keyed by comparison then by metric). The raw
 per-seed metrics for every arm are in `results_seeds.csv` (`seed, arm,
 inventory_sigma, max_drawdown, fills, final_pnl, t_stat, max_abs_inventory,
@@ -275,11 +275,12 @@ is the cleanest test of the skew on its own.
 
 ```
 market_maker.py        Config, market draw, the four strategies, run(), metrics()
-evaluate.py            paired four-arm evaluation, gamma sweep, per-seed CSV, schema-v2 JSON
+evaluate.py            paired four-arm evaluation, 2x2 factorial, gamma sweep, per-seed CSV,
+                       schema-v3 JSON
 audit.py               paired multi-seed replay of the simpler skew rule
 scripts/
   check_artifacts.py   regenerated artifacts vs the committed copies; CI fails on a difference
-test_market_maker.py   26 tests: CRN fill-subset property, P&L accounting from the
+test_market_maker.py   27 tests: CRN fill-subset property, P&L accounting from the
                        fill record, closed-form spread, skew units, crossing guard
                        (clamp, count, and price cap), price floor, inventory cap,
                        config validation, results schema

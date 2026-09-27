@@ -27,21 +27,27 @@ cannot say which of the two does the work, so there are four arms, all run on
 the same Market draws:
 
     fixed           symmetric at the benchmark spread          (benchmark)
-    spread_matched  symmetric at the model spread, no skew     (spread effect)
-    skew_only       model skew around the benchmark spread     (skew effect, narrow)
+    spread_matched  symmetric at the model spread, no skew
+    skew_only       model skew around the benchmark spread
     as              model skew and model spread                (full model)
 
-and four paired comparisons:
+and five paired comparisons:
 
-    spread_matched vs fixed   what quoting wider does on its own
-    skew_only      vs fixed   what the skew does at the benchmark's own volume
-    as             vs fixed   the full model against the benchmark
-    as             vs spread_matched   what the skew does at the model spread
+    spread_matched vs fixed            quoting wider, skew off
+    skew_only      vs fixed            the skew, at the benchmark spread
+    as             vs fixed            the full model against the benchmark
+    as             vs spread_matched   the skew, at the model spread
+    as             vs skew_only        quoting wider, skew on
+
+The arms are a 2x2 design (spread x skew), and the full model's effect splits
+into a spread step and a skew step in either order. The two orders differ by
+the interaction, so the report also gives the factorial main effects (each
+averaged over both orders, summing to as - fixed) and the interaction itself.
 
 Outputs
 -------
-    results.json          schema v2: per-arm means/SEs and every comparison,
-                          keyed by metric
+    results.json          schema v3: per-arm means/SEs, every comparison and
+                          the 2x2 factorial effects, keyed by metric
     results_seeds.csv     one row per (seed, arm): the raw per-seed metrics
     results_sweep.json    --gamma-sweep: the same summaries on a gamma grid
 
@@ -68,7 +74,7 @@ from market_maker import (ARMS, AvellanedaStoikovMaker, Config,
                           FixedSpreadMaker, SkewOnlyMaker, SpreadMatchedMaker,
                           model_half_spread, metrics, run, simulate_market)
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 BENCHMARK = FixedSpreadMaker.slug
 
 ARM_BY_SLUG = {cls.slug: cls for cls in ARMS}
@@ -99,7 +105,26 @@ COMPARISONS = (
     (AvellanedaStoikovMaker.slug, BENCHMARK,
      "full model (skew + model spread) vs the benchmark"),
     (AvellanedaStoikovMaker.slug, SpreadMatchedMaker.slug,
-     "skew effect at the model spread (isolates the skew)"),
+     "skew effect at the model spread"),
+    (AvellanedaStoikovMaker.slug, SkewOnlyMaker.slug,
+     "spread effect with the model skew on"),
+)
+
+# The four arms are a 2x2 design, spread (benchmark, model) x skew (off, on):
+#     fixed = (benchmark, off)    spread_matched = (model, off)
+#     skew_only = (benchmark, on) as = (model, on)
+# (as - fixed) splits into a spread step and a skew step in two orders,
+# fixed -> spread_matched -> as and fixed -> skew_only -> as, and the two
+# orders differ by the interaction. The main effects average the orders, so
+# spread_main + skew_main = as - fixed on every seed. (effect, definition)
+FACTORIAL = (
+    ("spread_main", "0.5 * [(spread_matched - fixed) + (as - skew_only)]"),
+    ("skew_main", "0.5 * [(skew_only - fixed) + (as - spread_matched)]"),
+    ("interaction", "(as - spread_matched) - (skew_only - fixed): how much "
+                    "more the skew is worth at the model spread than at the "
+                    "benchmark spread (equivalently, the spread with the skew "
+                    "on than off)"),
+    ("skew_minus_spread", "skew_main - spread_main"),
 )
 
 # results_seeds.csv columns -> metrics() keys
@@ -191,6 +216,41 @@ def compare(arrays: dict[str, dict[str, np.ndarray]], a: str, b: str) -> dict:
     return out
 
 
+def factorial_effects(arrays: dict[str, dict[str, np.ndarray]], k: str,
+                      higher: bool) -> dict[str, np.ndarray]:
+    """Per-seed factorial contrasts for one metric, oriented so positive =
+    better (see FACTORIAL)."""
+    f, sm, so, a = (oriented(arrays, slug, k, higher) for slug in (
+        FixedSpreadMaker.slug, SpreadMatchedMaker.slug, SkewOnlyMaker.slug,
+        AvellanedaStoikovMaker.slug))
+    spread_main = 0.5 * ((sm - f) + (a - so))
+    skew_main = 0.5 * ((so - f) + (a - sm))
+    return {"spread_main": spread_main, "skew_main": skew_main,
+            "interaction": (a - sm) - (so - f),
+            "skew_minus_spread": skew_main - spread_main}
+
+
+def factorial(arrays: dict[str, dict[str, np.ndarray]]) -> dict:
+    """Main effects, interaction and their difference for every metric, each
+    with a paired CI over seeds."""
+    per_metric = {k: factorial_effects(arrays, k, higher) for k, higher in METRICS}
+    effects = {}
+    for name, definition in FACTORIAL:
+        effects[name] = {
+            "definition": definition,
+            "metrics": {k: summarise(per_metric[k][name], k,
+                                     pct=pct_spec(arrays, k))
+                        for k, _ in METRICS}}
+    return {"design": "2x2 on the same draws: spread (benchmark, model) x "
+                      "skew (off, on)",
+            "cells": {FixedSpreadMaker.slug: ["benchmark", "off"],
+                      SpreadMatchedMaker.slug: ["model", "off"],
+                      SkewOnlyMaker.slug: ["benchmark", "on"],
+                      AvellanedaStoikovMaker.slug: ["model", "on"]},
+            "orientation": "positive = better, as in comparisons",
+            "effects": effects}
+
+
 def arm_summary(arrays: dict[str, dict[str, np.ndarray]]) -> dict:
     """Per-arm means and standard errors, keyed by arm then metric."""
     out = {}
@@ -248,6 +308,7 @@ def build_report(cfg: Config, rows, n_seeds: int) -> dict:
         "arm_spreads": arm_spreads(cfg),
         "arms": arm_summary(arrays),
         "comparisons": comparisons,
+        "factorial": factorial(arrays),
         "notes": {
             "edge": "spread captured: order_size * sum over fills of the "
                     "fill's distance from that tick's mid",
@@ -338,7 +399,8 @@ def sweep(cfg: Config, seeds, grid: list[float]) -> dict:
     for g in grid:
         rep = build_report(replace(cfg, risk_aversion=g), per_gamma[g], len(seeds))
         points.append({"gamma": g, "arm_spreads": rep["arm_spreads"],
-                       "arms": rep["arms"], "comparisons": rep["comparisons"]})
+                       "arms": rep["arms"], "comparisons": rep["comparisons"],
+                       "factorial": rep["factorial"]})
     return {"schema": SCHEMA_VERSION, "kind": "gamma_sweep",
             "n_seeds": len(seeds), "seed_range": [0, len(seeds) - 1],
             "grid": grid, "config": asdict(cfg), "arm_names": ARM_NAMES,
@@ -357,13 +419,19 @@ def print_report(rep: dict) -> None:
     for k in arms[order[0]]["mean"]:
         print(f"{k:<20}"
               + "".join(f"{arms[slug]['mean'][k]:>16,.2f}" for slug in order))
-    for key, c in rep["comparisons"].items():
-        print(f"\n{key}: {c['question']}")
-        print(f"{'metric':<20}{'diff':>12}{'95% CI':>26}{'win':>7}")
-        for k, s in c["metrics"].items():
+    blocks = [(f"{key}: {c['question']}", c["metrics"])
+              for key, c in rep["comparisons"].items()]
+    blocks += [(f"factorial {name}: {e['definition']}", e["metrics"])
+               for name, e in rep["factorial"]["effects"].items()]
+    for title, summaries in blocks:
+        print(f"\n{title}")
+        print(f"{'metric':<20}{'diff':>12}{'95% CI':>26}{'win':>7}{'pct':>9}")
+        for k, s in summaries.items():
             star = "*" if s["significant"] else " "
+            pct = f"{s['pct']['mean']:>8.1f}%" if "pct" in s else ""
             print(f"{k:<20}{s['mean']:>12,.2f}   [{s['ci95'][0]:>10,.2f}, "
-                  f"{s['ci95'][1]:>10,.2f}]{star}{s['win_rate'] * 100:>6.0f}%")
+                  f"{s['ci95'][1]:>10,.2f}]{star}{s['win_rate'] * 100:>6.0f}%"
+                  f"{pct}")
     print("\n* = 95% CI excludes zero. Differences are a - b, oriented so "
           "positive = a better\n(inventory_std is sign-flipped). 'win' = "
           "fraction of seeds on which a beats b on that metric.")
