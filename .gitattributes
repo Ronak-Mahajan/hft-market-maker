@@ -1,0 +1,10 @@
+# Text files are stored and checked out with LF on every platform, the line
+# endings evaluate.py and audit.py write, so a fresh checkout of the committed
+# artifacts is byte-identical to a regeneration.
+* text=auto eol=lf
+
+# Generated result artifacts (checked by scripts/check_artifacts.py):
+# collapsed in diffs.
+results*.json linguist-generated=true
+results_seeds*.csv linguist-generated=true
+audit_results.json linguist-generated=true
