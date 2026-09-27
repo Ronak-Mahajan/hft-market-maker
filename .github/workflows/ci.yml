@@ -37,10 +37,9 @@ jobs:
         run: |
           set -o pipefail
           python -m pip install --upgrade pip 2>&1 | tee -a ci.log
-          # Install the way the README tells a reader to, so that command is
-          # exercised on every run rather than only the two packages the code
-          # actually imports.
-          python -m pip install -r requirements.txt 2>&1 | tee -a ci.log
+          # Install the way the README tells a reader to: the exact versions
+          # pinned in requirements.lock (compiled from requirements.txt).
+          python -m pip install -r requirements.lock 2>&1 | tee -a ci.log
           python -c "import numpy, pytest; print('numpy', numpy.__version__, 'pytest', pytest.__version__)" 2>&1 | tee -a ci.log
 
       - name: Tests

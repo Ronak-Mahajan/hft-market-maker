@@ -5,7 +5,7 @@ against Poisson order flow, built to answer one question: **does skewing quotes
 against your inventory measurably reduce risk, and what does it cost?**
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.lock      # Python 3.12, the exact versions CI installs
 python evaluate.py --seeds 500        # four paired arms -> results.json, results_seeds.csv
 python evaluate.py --seeds 100 --gamma-sweep   # -> results_sweep.json
 python audit.py --seeds 200           # paired replay of the simpler rule -> audit_results.json
