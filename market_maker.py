@@ -1,10 +1,11 @@
-"""Market-making strategies and an event-driven backtester.
+"""Market-making strategies and a discrete-time Monte Carlo simulator.
 
 What this simulates
 -------------------
-A single market maker quoting a two-sided book against Poisson order flow, with
-a mid-price following geometric Brownian motion. Fills are stochastic: a quote
-posted at distance delta from the mid is hit with intensity
+A single market maker posting a bid and an ask against Poisson order flow, on a
+synthetic mid-price that follows geometric Brownian motion. Time advances in
+fixed ticks with at most one market order per tick. Fills are stochastic: a
+quote posted at distance delta from the mid is hit with intensity
 
     lambda(delta) = A * exp(-kappa * delta)
 
@@ -29,18 +30,18 @@ experiment has four arms (see evaluate.py):
 and the paired differences between them decompose the full model's effect
 into a spread part and a skew part.
 
-Avellaneda-Stoikov, implemented properly
-----------------------------------------
+Avellaneda-Stoikov
+------------------
     reservation price   r = s - q * gamma * sigma^2 * (T - t)
     optimal half-spread d = [ gamma*sigma^2*(T-t) + (2/gamma)*ln(1 + gamma/kappa) ] / 2
     bid = r - d,   ask = r + d
 
 Both terms carry (T - t): risk aversion to inventory decays to zero at the
 terminal time because there is no longer any horizon over which the position
-can move against you. An earlier version of this file skewed by -q*gamma*sigma^2
-with no time dependence and then quoted a HAND-PICKED fixed spread around it,
-which is the inventory intuition without the model; that design is kept here as
-the skew-only arm because it is the cleanest test of the skew on its own.
+can move against you. The skew-only arm quotes the model's reservation price,
+horizon decay included, around the HAND-PICKED benchmark spread, which isolates
+the skew from the model spread. audit.py replays the simpler rule that leans by
+-q*gamma*sigma^2 with no time dependence.
 
 Units
 -----
@@ -64,9 +65,9 @@ Reproducibility
 ---------------
 Every strategy is evaluated on IDENTICAL price paths and IDENTICAL fill draws
 (common random numbers), so a difference between two strategies is attributable
-to the strategies and not to luck. Results are reported over many independent
-seeds with confidence intervals, because a single seed of this simulator is
-close to meaningless -- see evaluate.py.
+to the strategies. Results are reported over many independent seeds with
+confidence intervals, because the terminal P&L of a single seed is dominated
+by its own price path (see evaluate.py).
 """
 
 from __future__ import annotations
@@ -156,8 +157,8 @@ def simulate_market(cfg: Config, seed: int) -> Market:
     strategy loop, so every strategy faces the same luck.
 
     The order of RNG consumption (normals, arrivals, directions, fill draws)
-    is fixed: changing it would change every seed's market and silently break
-    comparability with previously published runs."""
+    is fixed: changing it would change every seed's market, and with it
+    every committed artifact and audit.py's matching draw_market."""
     rng = np.random.default_rng(seed)
     eps = rng.standard_normal(cfg.n_ticks - 1)
     log_ret = ((cfg.drift - 0.5 * cfg.volatility ** 2) * cfg.dt
@@ -324,9 +325,9 @@ class SpreadMatchedMaker(FixedSpreadMaker):
 class SkewOnlyMaker(MarketMaker):
     """Avellaneda-Stoikov reservation-price skew around the benchmark's
     hand-picked spread. Isolates the skew from the model spread at the
-    benchmark's own volume. This is the design of the original notebook, with
-    the (T - t) decay added so the skew is the same function as the full
-    model's."""
+    benchmark's own volume. The lean carries the same (T - t) decay as the
+    full model's, so the skew is the same function in both arms; with tau
+    held at 1 this is the horizon-free rule audit.py replays."""
 
     name = "skew-only"
     slug = "skew_only"
@@ -414,8 +415,7 @@ def metrics(s: MarketMaker) -> dict[str, float]:
     t_stat is mean(step P&L) / std(step P&L) * sqrt(n_steps): the per-step
     Sharpe ratio scaled to the whole horizon, which is numerically the
     t-statistic of the mean step P&L against zero. It is NOT annualised and
-    should not be read as a Sharpe ratio in the usual sense (earlier versions
-    of this file called it 'sharpe')."""
+    should not be read as a Sharpe ratio in the usual sense."""
     pnl = s.pnl
     step_pnl = np.diff(pnl)
     peak = np.maximum.accumulate(pnl)

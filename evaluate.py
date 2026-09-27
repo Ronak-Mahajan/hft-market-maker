@@ -1,15 +1,11 @@
-"""Paired multi-seed evaluation, because one seed of this simulator says nothing.
+"""Paired multi-seed evaluation of the four quoting arms.
 
-Why this file exists
---------------------
-An earlier version of this project reported a single seed: a $22,322 loss turned
-into a $7,336 profit, quoted as a "+132% improvement". That number reproduces
-(simulation.ipynb) -- but it is one draw from a wide distribution (audit.py
-replays that old model across seeds). A single path of a 10,000-tick GBM with
-Poisson fills carries enormous terminal variance, so a single-seed comparison
-of two strategies measures the seed, not the strategies.
-
-Two things fix that:
+Why paired seeds
+----------------
+One path of a 10,000-tick GBM with Poisson fills carries terminal P&L variance
+that swamps any difference between two strategies, so a single-seed
+comparison measures the seed. Two design choices make the difference
+resolvable:
 
 1. PAIRED COMPARISON with common random numbers. Every strategy faces the same
    price path, the same order arrivals and the same uniform fill draws, so the

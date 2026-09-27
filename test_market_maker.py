@@ -99,10 +99,9 @@ def test_skew_magnitude_is_gamma_q_sigma2_tau():
 
 
 def test_risk_aversion_decays_to_zero_at_the_horizon():
-    """Both the skew and the spread carry (T - t). An earlier version omitted
-    the horizon entirely, which is the inventory intuition without the model.
-    The skew decay is the material half: 0.012 -> ~0 for q = 60; the spread
-    decay is gamma*sigma^2 = 2e-4 over the run."""
+    """Both the skew and the spread carry (T - t). The skew decay is the
+    material half: 0.012 -> ~0 for q = 60; the spread decay is
+    gamma*sigma^2 = 2e-4 over the run."""
     s = AvellanedaStoikovMaker(CFG)
     s.inventory = 60
     early_bid, early_ask = s.quote(100.0, 0)
@@ -184,8 +183,8 @@ def test_crossing_guard_caps_the_fill_price_not_the_probability():
     fill probability has already clipped to 1, and clamping to the mid leaves it
     there; what changes is that the trade prints at fair value instead of
     through it. With gamma = 10 and q = +100 the raw ask is ~99.67 against a mid
-    of 100, so an arriving buyer would otherwise lift our offer BELOW fair value
-    -- a certain loss. This pins the claim made in MarketMaker's docstring and in
+    of 100, so an arriving buyer would otherwise lift our offer BELOW fair value,
+    a certain loss. This pins the claim made in MarketMaker's docstring and in
     the README's Guard rails section."""
     cfg = Config(n_ticks=10, risk_aversion=10.0)
     s = AvellanedaStoikovMaker(cfg)
@@ -374,8 +373,8 @@ def test_metrics_label_the_horizon_statistic_as_t_stat():
 
 def test_avellaneda_stoikov_reduces_inventory_risk():
     """The headline claim, as a test: A-S must cut inventory dispersion on a
-    clear majority of paired seeds. P&L is deliberately NOT asserted -- across
-    500 seeds that difference is not distinguishable from zero."""
+    clear majority of paired seeds. Realized P&L is not asserted: across
+    500 seeds that difference does not resolve."""
     wins = 0
     trials = 40
     for seed in range(trials):
