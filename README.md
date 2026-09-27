@@ -10,7 +10,7 @@ python evaluate.py --seeds 500        # four paired arms -> results.json, result
 python evaluate.py --seeds 100 --gamma-sweep   # -> results_sweep.json
 python audit.py --seeds 200           # paired replay of the simpler rule -> audit_results.json
 python scripts/check_artifacts.py     # regenerated artifacts vs the committed copies
-python -m pytest -q                   # 26 tests
+python -m pytest -q                   # 28 tests
 ```
 
 ## The problem
@@ -189,8 +189,8 @@ Per-arm means and every pairwise comparison live in `results.json` (schema v2:
 `arms` keyed by arm, `comparisons` keyed by comparison then by metric). The raw
 per-seed metrics for every arm are in `results_seeds.csv` (`seed, arm,
 inventory_sigma, max_drawdown, fills, final_pnl, t_stat, max_abs_inventory,
-quote_crossings, floored_bids`), so any number in the tables above can be
-recomputed from the committed artifact.
+quote_crossings, floored_bids, edge, inventory_pnl`), so any number in the
+tables above can be recomputed from the committed artifact.
 
 The seed count was not reduced for CI: the whole job (tests, the 500-seed
 four-arm run, the 100-seed γ sweep and the 200-seed audit) finishes well inside
@@ -279,7 +279,7 @@ evaluate.py            paired four-arm evaluation, gamma sweep, per-seed CSV, sc
 audit.py               paired multi-seed replay of the simpler skew rule
 scripts/
   check_artifacts.py   regenerated artifacts vs the committed copies; CI fails on a difference
-test_market_maker.py   22 tests: CRN fill-subset property, P&L accounting from the
+test_market_maker.py   24 tests: CRN fill-subset property, P&L accounting from the
                        fill record, closed-form spread, skew units, crossing guard
                        (clamp, count, and price cap), price floor, inventory cap,
                        config validation, results schema

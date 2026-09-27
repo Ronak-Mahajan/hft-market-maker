@@ -220,6 +220,7 @@ class MarketMaker:
         self.cash = 0.0
         self.pnl = np.empty(cfg.n_ticks)
         self.inv_path = np.empty(cfg.n_ticks, dtype=np.int64)
+        self.mids = np.empty(cfg.n_ticks)
         # +1: our bid was hit (we bought); -1: our ask was lifted (we sold)
         self.fills = np.zeros(cfg.n_ticks, dtype=np.int8)
         self.fill_prices = np.zeros(cfg.n_ticks)
@@ -269,6 +270,7 @@ class MarketMaker:
                     self.fill_prices[t] = bid
         self.pnl[t] = self.cash + self.inventory * mid
         self.inv_path[t] = self.inventory
+        self.mids[t] = mid
 
 
 class FixedSpreadMaker(MarketMaker):
@@ -364,6 +366,26 @@ def run(strategy: MarketMaker, market: Market) -> MarketMaker:
 def metrics(s: MarketMaker) -> dict[str, float]:
     """Per-run summary.
 
+    Realized P&L splits exactly into two parts, final_pnl = edge +
+    inventory_pnl:
+
+        edge            order_size * sum over fills of the fill's distance
+                        from that tick's mid: (mid - bid) on a buy, (ask - mid)
+                        on a sell. The spread captured; never negative, since
+                        the crossing guard keeps bid <= mid <= ask.
+        inventory_pnl   sum over ticks of the inventory held into the tick
+                        times the mid's change, sum q[t-1] * (S[t] - S[t-1]).
+
+    Fill probabilities depend only on each quote's dollar offset from the
+    mid, and every offset depends only on inventory and time, so the fills
+    and the inventory path do not depend on the price path (the price floor
+    is the exception, on the ticks where it binds). Order flow is symmetric
+    and every arm is odd in q, so E[q] = 0 and E[inventory_pnl] = 0 even with
+    the drift: expected P&L is the expected edge. The realized inventory term
+    has a standard deviation in the tens of thousands per run at the
+    defaults, which is why final_pnl cannot resolve a difference that edge
+    measures to within a dollar or two.
+
     t_stat is mean(step P&L) / std(step P&L) * sqrt(n_steps): the per-step
     Sharpe ratio scaled to the whole horizon, which is numerically the
     t-statistic of the mean step P&L against zero. It is NOT annualised and
@@ -372,8 +394,11 @@ def metrics(s: MarketMaker) -> dict[str, float]:
     pnl = s.pnl
     step_pnl = np.diff(pnl)
     peak = np.maximum.accumulate(pnl)
+    edge = s.cfg.order_size * float(np.dot(s.fills, s.mids - s.fill_prices))
     return {
         "final_pnl": float(pnl[-1]),
+        "edge": edge,
+        "inventory_pnl": float(np.dot(s.inv_path[:-1], np.diff(s.mids))),
         "pnl_std": float(step_pnl.std()),
         "t_stat": float(step_pnl.mean() / (step_pnl.std() + 1e-12)
                         * math.sqrt(len(step_pnl))),

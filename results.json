@@ -39,6 +39,8 @@
    "name": "fixed spread",
    "mean": {
     "final_pnl": -1422.63837,
+    "edge": 276.51,
+    "inventory_pnl": -1699.14837,
     "pnl_std": 227.56308,
     "t_stat": -0.01189602151,
     "max_drawdown": -29177.34966,
@@ -50,6 +52,8 @@
    },
    "se": {
     "final_pnl": 1913.653889,
+    "edge": 0.6045649656,
+    "inventory_pnl": 1913.635311,
     "pnl_std": 20.10095787,
     "t_stat": 0.04092141322,
     "max_drawdown": 3465.532376,
@@ -64,6 +68,8 @@
    "name": "spread-matched",
    "mean": {
     "final_pnl": -1547.349066,
+    "edge": 336.5762655,
+    "inventory_pnl": -1883.925332,
     "pnl_std": 215.2737304,
     "t_stat": 0.03511844449,
     "max_drawdown": -27183.67374,
@@ -75,6 +81,8 @@
    },
    "se": {
     "final_pnl": 1503.288562,
+    "edge": 0.8957827336,
+    "inventory_pnl": 1503.263583,
     "pnl_std": 16.92371833,
     "t_stat": 0.04071332484,
     "max_drawdown": 2405.110861,
@@ -89,6 +97,8 @@
    "name": "skew-only",
    "mean": {
     "final_pnl": -1465.35928,
+    "edge": 280.7051178,
+    "inventory_pnl": -1746.064398,
     "pnl_std": 202.9238564,
     "t_stat": 0.00637727188,
     "max_drawdown": -26336.94843,
@@ -100,6 +110,8 @@
    },
    "se": {
     "final_pnl": 1845.05406,
+    "edge": 0.5629367836,
+    "inventory_pnl": 1845.033142,
     "pnl_std": 18.79191861,
     "t_stat": 0.04075247059,
     "max_drawdown": 3321.871645,
@@ -114,6 +126,8 @@
    "name": "Avellaneda-Stoikov",
    "mean": {
     "final_pnl": -1937.530975,
+    "edge": 342.4646228,
+    "inventory_pnl": -2279.995597,
     "pnl_std": 195.782023,
     "t_stat": 0.04037106408,
     "max_drawdown": -25206.27068,
@@ -125,6 +139,8 @@
    },
    "se": {
     "final_pnl": 1449.839672,
+    "edge": 0.8455646682,
+    "inventory_pnl": 1449.801711,
     "pnl_std": 17.5976478,
     "t_stat": 0.04131277994,
     "max_drawdown": 2571.88429,
@@ -155,6 +171,34 @@
      ],
      "median": 325.1560891,
      "win_rate": 0.518,
+     "significant": false
+    },
+    "edge": {
+     "label": "edge",
+     "unit": "",
+     "n": 500,
+     "mean": 60.06626545,
+     "se": 0.6114761039,
+     "ci95": [
+      58.86777229,
+      61.26475861
+     ],
+     "median": 59.65950979,
+     "win_rate": 1.0,
+     "significant": true
+    },
+    "inventory_pnl": {
+     "label": "inventory_pnl",
+     "unit": "",
+     "n": 500,
+     "mean": -184.7769622,
+     "se": 2067.472936,
+     "ci95": [
+      -4237.023917,
+      3867.469993
+     ],
+     "median": 264.936222,
+     "win_rate": 0.514,
      "significant": false
     },
     "t_stat": {
@@ -232,6 +276,34 @@
       743.5932317
      ],
      "median": 208.3962301,
+     "win_rate": 0.536,
+     "significant": false
+    },
+    "edge": {
+     "label": "edge",
+     "unit": "",
+     "n": 500,
+     "mean": 4.19511776,
+     "se": 0.1819363088,
+     "ci95": [
+      3.838522595,
+      4.551712925
+     ],
+     "median": 4.283543,
+     "win_rate": 0.854,
+     "significant": true
+    },
+    "inventory_pnl": {
+     "label": "inventory_pnl",
+     "unit": "",
+     "n": 500,
+     "mean": -46.91602806,
+     "se": 401.1836853,
+     "ci95": [
+      -833.2360512,
+      739.4039951
+     ],
+     "median": 205.2246911,
      "win_rate": 0.536,
      "significant": false
     },
@@ -313,6 +385,34 @@
      "win_rate": 0.54,
      "significant": false
     },
+    "edge": {
+     "label": "edge",
+     "unit": "",
+     "n": 500,
+     "mean": 65.95462284,
+     "se": 0.5559358985,
+     "ci95": [
+      64.86498848,
+      67.0442572
+     ],
+     "median": 65.42079294,
+     "win_rate": 1.0,
+     "significant": true
+    },
+    "inventory_pnl": {
+     "label": "inventory_pnl",
+     "unit": "",
+     "n": 500,
+     "mean": -580.8472277,
+     "se": 1775.205804,
+     "ci95": [
+      -4060.250604,
+      2898.556148
+     ],
+     "median": 235.121446,
+     "win_rate": 0.532,
+     "significant": false
+    },
     "t_stat": {
      "label": "t_stat",
      "unit": "",
@@ -391,6 +491,34 @@
      "win_rate": 0.5,
      "significant": false
     },
+    "edge": {
+     "label": "edge",
+     "unit": "",
+     "n": 500,
+     "mean": 5.888357392,
+     "se": 0.2841486213,
+     "ci95": [
+      5.331426095,
+      6.44528869
+     ],
+     "median": 5.011893734,
+     "win_rate": 0.854,
+     "significant": true
+    },
+    "inventory_pnl": {
+     "label": "inventory_pnl",
+     "unit": "",
+     "n": 500,
+     "mean": -396.0702655,
+     "se": 520.7828706,
+     "ci95": [
+      -1416.804692,
+      624.6641608
+     ],
+     "median": -16.24433224,
+     "win_rate": 0.496,
+     "significant": false
+    },
     "t_stat": {
      "label": "t_stat",
      "unit": "",
@@ -451,6 +579,8 @@
   }
  },
  "notes": {
+  "edge": "spread captured: order_size * sum over fills of the fill's distance from that tick's mid",
+  "inventory_pnl": "sum over ticks of inventory held into the tick times the mid's change; final_pnl = edge + inventory_pnl, and E[inventory_pnl] = 0 here (market_maker.metrics)",
   "t_stat": "mean(step pnl)/std(step pnl)*sqrt(n_steps); the whole-horizon Sharpe, not annualised",
   "max_drawdown": "<= 0; a positive difference means a shallower drawdown for arm a",
   "quote_crossings": "ticks on which a raw quote crossed the mid and was clamped to it (market_maker.MarketMaker.step)",

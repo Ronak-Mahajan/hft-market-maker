@@ -260,6 +260,43 @@ def test_pnl_accounting_reconstructs_from_the_fill_record():
         np.testing.assert_allclose(s.pnl, cash + inv * m.prices, rtol=0, atol=1e-6)
 
 
+def test_final_pnl_is_edge_plus_inventory_pnl():
+    """Realized P&L splits exactly into the spread captured on each fill
+    (edge, measured from that tick's mid) and the inventory held into each
+    tick times the mid's move (inventory_pnl), computed independently."""
+    cfg = Config(n_ticks=2_000)
+    m = simulate_market(cfg, 5)
+    for S in ARMS:
+        s = run(S(cfg), m)
+        k = metrics(s)
+        assert k["final_pnl"] == pytest.approx(k["edge"] + k["inventory_pnl"],
+                                               rel=1e-9, abs=1e-6)
+        filled = s.fills != 0
+        offsets = (s.fills * (m.prices - s.fill_prices))[filled]
+        assert np.all(offsets >= 0), "a fill on the wrong side of the mid"
+        assert k["edge"] == pytest.approx(cfg.order_size * offsets.sum(), rel=1e-12)
+        assert k["edge"] > 0
+
+
+def test_inventory_path_does_not_depend_on_the_price_path():
+    """Fill probabilities depend only on each quote's dollar offset from the
+    mid, and every offset depends only on inventory and time. So with the
+    arrivals, directions and fill draws held fixed, a different price path
+    gives the same fills, the same inventory path and the same edge; only
+    inventory_pnl moves. With symmetric order flow this is what makes
+    E[inventory_pnl] = 0 and expected P&L the expected edge."""
+    cfg = Config(n_ticks=2_000)
+    m, other = simulate_market(cfg, 5), simulate_market(cfg, 6)
+    swapped = Market(other.prices, m.arrivals, m.directions, m.fill_draws)
+    for S in ARMS:
+        a, b = run(S(cfg), m), run(S(cfg), swapped)
+        assert np.array_equal(a.fills, b.fills)
+        assert np.array_equal(a.inv_path, b.inv_path)
+        ka, kb = metrics(a), metrics(b)
+        assert ka["edge"] == pytest.approx(kb["edge"], rel=1e-9)
+        assert ka["inventory_pnl"] != pytest.approx(kb["inventory_pnl"], rel=1e-3)
+
+
 def test_inventory_limit_is_respected():
     cfg = Config(n_ticks=4_000, max_inventory=40)
     m = simulate_market(cfg, 11)

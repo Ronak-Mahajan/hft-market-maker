@@ -75,8 +75,9 @@ ARM_BY_SLUG = {cls.slug: cls for cls in ARMS}
 ARM_NAMES = {cls.slug: cls.name for cls in ARMS}
 
 # (metric, better_is_higher). Differences are oriented so positive = a better.
-METRICS = (("final_pnl", True), ("t_stat", True), ("inventory_std", False),
-           ("max_drawdown", True), ("n_fills", True))
+METRICS = (("final_pnl", True), ("edge", True), ("inventory_pnl", True),
+           ("t_stat", True), ("inventory_std", False), ("max_drawdown", True),
+           ("n_fills", True))
 
 # (a, b, question). Each summary is a - b, oriented by METRICS.
 COMPARISONS = (
@@ -98,9 +99,13 @@ CSV_COLUMNS = (("inventory_sigma", "inventory_std"),
                ("t_stat", "t_stat"),
                ("max_abs_inventory", "max_abs_inventory"),
                ("quote_crossings", "n_crossed"),
-               ("floored_bids", "n_floored"))
+               ("floored_bids", "n_floored"),
+               ("edge", "edge"),
+               ("inventory_pnl", "inventory_pnl"))
 
 DEFAULT_GAMMA_GRID = "0.05,0.1,0.2,0.5,1,2,5"
+# the metrics print_sweep shows; results_sweep.json carries all of METRICS
+SWEEP_PRINTED = ("inventory_std", "max_drawdown", "n_fills", "edge", "final_pnl")
 
 # Every float written to an artifact is rounded to this many significant
 # digits. The simulation is deterministic, but the last bits of exp, log and
@@ -205,6 +210,12 @@ def build_report(cfg: Config, rows, n_seeds: int) -> dict:
         "arms": arm_summary(arrays),
         "comparisons": comparisons,
         "notes": {
+            "edge": "spread captured: order_size * sum over fills of the "
+                    "fill's distance from that tick's mid",
+            "inventory_pnl": "sum over ticks of inventory held into the tick "
+                             "times the mid's change; final_pnl = edge + "
+                             "inventory_pnl, and E[inventory_pnl] = 0 here "
+                             "(market_maker.metrics)",
             "t_stat": "mean(step pnl)/std(step pnl)*sqrt(n_steps); the "
                       "whole-horizon Sharpe, not annualised",
             "max_drawdown": "<= 0; a positive difference means a shallower "
@@ -286,20 +297,20 @@ def print_report(rep: dict) -> None:
     arms = rep["arms"]
     order = [cls.slug for cls in ARMS]
     print(f"paired comparison over {rep['n_seeds']} seeds, common random "
-          f"numbers, gamma = {rep['gamma']}")
-    print(f"{'arm':<20}{'spread':>9}" + "".join(f"{k:>16}" for k, _ in METRICS)
-          + f"{'crossings':>11}")
-    for slug in order:
-        a = arms[slug]
-        print(f"{ARM_NAMES[slug]:<20}{rep['arm_spreads'][slug]:>9.4f}"
-              + "".join(f"{a['mean'][k]:>16,.2f}" for k, _ in METRICS)
-              + f"{a['mean']['n_crossed']:>11,.1f}")
+          f"numbers, gamma = {rep['gamma']}, max_inventory = "
+          f"{rep['config']['max_inventory']}")
+    print(f"\n{'per-arm mean':<20}" + "".join(f"{slug:>16}" for slug in order))
+    print(f"{'spread':<20}"
+          + "".join(f"{rep['arm_spreads'][slug]:>16.4f}" for slug in order))
+    for k in arms[order[0]]["mean"]:
+        print(f"{k:<20}"
+              + "".join(f"{arms[slug]['mean'][k]:>16,.2f}" for slug in order))
     for key, c in rep["comparisons"].items():
         print(f"\n{key}: {c['question']}")
-        print(f"{'metric':<16}{'diff':>12}{'95% CI':>26}{'win':>7}")
+        print(f"{'metric':<20}{'diff':>12}{'95% CI':>26}{'win':>7}")
         for k, s in c["metrics"].items():
             star = "*" if s["significant"] else " "
-            print(f"{k:<16}{s['mean']:>12,.2f}   [{s['ci95'][0]:>10,.2f}, "
+            print(f"{k:<20}{s['mean']:>12,.2f}   [{s['ci95'][0]:>10,.2f}, "
                   f"{s['ci95'][1]:>10,.2f}]{star}{s['win_rate'] * 100:>6.0f}%")
     print("\n* = 95% CI excludes zero. Differences are a - b, oriented so "
           "positive = a better\n(inventory_std is sign-flipped). 'win' = "
@@ -312,11 +323,12 @@ def print_sweep(sw: dict) -> None:
     for a, b, _q in COMPARISONS:
         key = f"{a}_vs_{b}"
         print(f"\n{key}")
-        print(f"{'gamma':>7}{'model spr':>11}" + "".join(f"{k:>18}" for k, _ in METRICS))
+        print(f"{'gamma':>7}{'model spr':>11}"
+              + "".join(f"{k:>18}" for k in SWEEP_PRINTED))
         for pt in sw["points"]:
             c = pt["comparisons"][key]["metrics"]
             line = f"{pt['gamma']:>7g}{pt['arm_spreads']['as']:>11.4f}"
-            for k, _ in METRICS:
+            for k in SWEEP_PRINTED:
                 s = c[k]
                 line += f"{s['mean']:>15,.1f}{'*' if s['significant'] else ' '}  "
             print(line)
