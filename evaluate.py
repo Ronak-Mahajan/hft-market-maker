@@ -50,11 +50,15 @@ Outputs
                           the 2x2 factorial effects, keyed by metric
     results_seeds.csv     one row per (seed, arm): the raw per-seed metrics
     results_sweep.json    --gamma-sweep: the same summaries on a gamma grid
+    results_uncapped.json, results_seeds_uncapped.csv
+                          --max-inventory none: the same run with the
+                          position limit lifted
 
 Usage:
     python evaluate.py --seeds 500                  # headline artifacts
     python evaluate.py --seeds 500 --gamma 2.0      # results_gamma_2.json,
                                                     # never overwrites results.json
+    python evaluate.py --seeds 500 --max-inventory none   # results_uncapped.json
     python evaluate.py --seeds 100 --gamma-sweep    # default grid
     python evaluate.py --seeds 100 --gamma-sweep 0.1,0.5,2
 """
@@ -459,6 +463,20 @@ def print_sweep(sw: dict) -> None:
               f"{pt['arms']['as']['mean']['n_crossed']:>8.1f}")
 
 
+def parse_cap(text: str, cfg: Config) -> tuple[int, str]:
+    """--max-inventory N|none -> (max_inventory, artifact suffix). 'none'
+    sets the cap to n_ticks * order_size, more than any run can hold, so it
+    never binds."""
+    if text.strip().lower() == "none":
+        return cfg.n_ticks * cfg.order_size, "_uncapped"
+    try:
+        n = int(text)
+    except ValueError:
+        raise SystemExit("--max-inventory needs a non-negative integer or "
+                         "'none'") from None
+    return n, f"_cap_{n}"
+
+
 def parse_grid(text: str) -> list[float]:
     grid = sorted({float(x) for x in text.split(",") if x.strip()})
     if not grid or any(g <= 0 for g in grid):
@@ -474,12 +492,18 @@ def main() -> None:
                    help="override risk aversion; outputs then go to "
                         "results_gamma_<g>.json / results_seeds_gamma_<g>.csv "
                         "so the headline artifacts are never overwritten")
+    p.add_argument("--max-inventory", default=None, metavar="N|none",
+                   help="override the position limit |q| <= N; 'none' lifts "
+                        "it. Outputs then go to results_uncapped.json / "
+                        "results_seeds_uncapped.csv (or results_cap_<N>.json "
+                        "/ results_seeds_cap_<N>.csv), never the headline "
+                        "artifacts")
     p.add_argument("--json", default=None,
-                   help="summary output (default results.json, or "
-                        "results_gamma_<g>.json with --gamma)")
+                   help="summary output (default results.json, or the "
+                        "--gamma / --max-inventory name)")
     p.add_argument("--csv", default=None,
-                   help="per-seed output (default results_seeds.csv, or "
-                        "results_seeds_gamma_<g>.csv with --gamma)")
+                   help="per-seed output (default results_seeds.csv, or the "
+                        "--gamma / --max-inventory name)")
     p.add_argument("--gamma-sweep", nargs="?", const=DEFAULT_GAMMA_GRID,
                    default=None, metavar="GRID",
                    help="run the four arms on a comma-separated gamma grid "
@@ -490,6 +514,11 @@ def main() -> None:
     if args.seeds < 2:
         raise SystemExit("--seeds must be at least 2 (a CI needs a variance)")
 
+    if args.gamma_sweep is not None and (args.gamma is not None
+                                         or args.max_inventory is not None):
+        raise SystemExit("--gamma and --max-inventory apply to a single run, "
+                         "not to --gamma-sweep")
+
     t0 = time.perf_counter()
     if args.gamma_sweep is not None:
         grid = parse_grid(args.gamma_sweep)
@@ -499,11 +528,17 @@ def main() -> None:
         print(f"\nwrote {args.sweep_json}  ({time.perf_counter() - t0:.0f} s)")
         return
 
+    overrides, suffix = {}, ""
+    if args.gamma is not None:
+        overrides["risk_aversion"] = args.gamma
+        suffix += f"_gamma_{args.gamma:g}"
+    if args.max_inventory is not None:
+        overrides["max_inventory"], cap_suffix = parse_cap(args.max_inventory, Config())
+        suffix += cap_suffix
     try:
-        cfg = Config() if args.gamma is None else Config(risk_aversion=args.gamma)
+        cfg = Config(**overrides)
     except ValueError as e:
-        raise SystemExit(f"--gamma: {e}") from None
-    suffix = "" if args.gamma is None else f"_gamma_{args.gamma:g}"
+        raise SystemExit(f"invalid setting: {e}") from None
     json_path = args.json or f"results{suffix}.json"
     csv_path = args.csv or f"results_seeds{suffix}.csv"
 

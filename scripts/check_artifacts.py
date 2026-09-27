@@ -3,12 +3,14 @@
 The three generators write their artifacts into the repository root:
 
     python evaluate.py --seeds 500                 # results.json, results_seeds.csv
+    python evaluate.py --seeds 500 --max-inventory none
+                                    # results_uncapped.json, results_seeds_uncapped.csv
     python evaluate.py --seeds 100 --gamma-sweep   # results_sweep.json
     python audit.py --seeds 200                    # audit_results.json
 
 Run this script after them. It reads each artifact from the working tree and
 the committed version from git (HEAD unless --rev says otherwise), and exits
-with status 1 if any of the four differs.
+with status 1 if any of them differs.
 
 What counts as a difference:
 
@@ -16,7 +18,7 @@ What counts as a difference:
   strings, booleans and integers; the win_rate and profitable_share fractions,
   which count seeds; and the seed, arm, fills, max_abs_inventory,
   quote_crossings, floored_bids, blocked_fills and ticks_at_cap columns of
-  results_seeds.csv.
+  the per-seed CSVs.
 - Every other float must agree to a relative tolerance of 1e-9. The
   writers round floats to 10 significant digits (evaluate.SIG_DIGITS),
   which absorbs the platform noise in the last bits of exp, log and long
@@ -40,8 +42,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-JSON_ARTIFACTS = ("results.json", "results_sweep.json", "audit_results.json")
-CSV_ARTIFACTS = ("results_seeds.csv",)
+JSON_ARTIFACTS = ("results.json", "results_uncapped.json", "results_sweep.json",
+                  "audit_results.json")
+CSV_ARTIFACTS = ("results_seeds.csv", "results_seeds_uncapped.csv")
 ARTIFACTS = JSON_ARTIFACTS + CSV_ARTIFACTS
 
 RTOL = 1e-9

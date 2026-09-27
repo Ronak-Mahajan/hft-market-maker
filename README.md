@@ -7,10 +7,11 @@ against your inventory measurably reduce risk, and what does it cost?**
 ```bash
 pip install -r requirements.lock      # Python 3.12, the exact versions CI installs
 python evaluate.py --seeds 500        # four paired arms -> results.json, results_seeds.csv
+python evaluate.py --seeds 500 --max-inventory none   # position limit lifted -> results_uncapped.json
 python evaluate.py --seeds 100 --gamma-sweep   # -> results_sweep.json
 python audit.py --seeds 200           # paired replay of the simpler rule -> audit_results.json
 python scripts/check_artifacts.py     # regenerated artifacts vs the committed copies
-python -m pytest -q                   # 31 tests
+python -m pytest -q                   # 32 tests
 ```
 
 ## The problem
@@ -193,8 +194,9 @@ quote_crossings, floored_bids, edge, inventory_pnl`), so any number in the
 tables above can be recomputed from the committed artifact.
 
 The seed count was not reduced for CI: the whole job (tests, the 500-seed
-four-arm run, the 100-seed γ sweep and the 200-seed audit) finishes well inside
-the ten-minute budget, so the headline artifacts are always the full 500 seeds.
+four-arm run, its 500-seed rerun without the position limit, the 100-seed γ
+sweep and the 200-seed audit) finishes well inside the ten-minute budget, so
+the headline artifacts are always the full 500 seeds.
 
 ## Why the evaluation is built this way
 
@@ -280,14 +282,17 @@ evaluate.py            paired four-arm evaluation, 2x2 factorial, gamma sweep, p
 audit.py               paired multi-seed replay of the simpler skew rule
 scripts/
   check_artifacts.py   regenerated artifacts vs the committed copies; CI fails on a difference
-test_market_maker.py   27 tests: CRN fill-subset property, P&L accounting from the
+test_market_maker.py   28 tests: CRN fill-subset property, P&L accounting from the
                        fill record, closed-form spread, skew units, crossing guard
                        (clamp, count, and price cap), price floor, inventory cap,
                        config validation, results schema
 test_artifacts.py      4 tests: 10-digit float rounding in the writers, and the
                        tolerance and exact-match rules of check_artifacts.py
-results.json           per-arm means and every pairwise comparison (checked by CI)
+results.json           per-arm means, every pairwise comparison and the factorial
+                       effects                                     (checked by CI)
 results_seeds.csv      one row per (seed, arm)                     (checked by CI)
+results_uncapped.json  the same run with the position limit lifted, and
+results_seeds_uncapped.csv its per-seed rows                       (checked by CI)
 results_sweep.json     the same summaries on a gamma grid, 100 seeds (checked by CI)
 audit_results.json     audit.py output                             (checked by CI)
 simulation.ipynb       exploratory notebook for the simpler rule and its plots

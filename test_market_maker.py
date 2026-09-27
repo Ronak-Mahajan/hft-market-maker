@@ -497,3 +497,19 @@ def test_gamma_sweep_shares_the_benchmark_and_varies_the_model():
     assert b0 == b1
     assert sw["points"][0]["arm_spreads"]["as"] != sw["points"][1]["arm_spreads"]["as"]
     assert evaluate.parse_grid("2, 0.5,0.5") == [0.5, 2.0]
+
+
+def test_max_inventory_option_writes_its_own_artifacts():
+    """--max-inventory none lifts the cap to more than any run can hold and
+    names the outputs results_uncapped.*; a number names them results_cap_<N>.*.
+    Neither can overwrite the headline artifacts."""
+    cfg = Config()
+    cap, suffix = evaluate.parse_cap("none", cfg)
+    assert cap == cfg.n_ticks * cfg.order_size and suffix == "_uncapped"
+    assert evaluate.parse_cap("50", cfg) == (50, "_cap_50")
+    with pytest.raises(SystemExit):
+        evaluate.parse_cap("lots", cfg)
+    m = simulate_market(Config(n_ticks=2_000), 4)
+    uncapped = Config(n_ticks=2_000, max_inventory=2_000 * cfg.order_size)
+    for S in ARMS:
+        assert metrics(run(S(uncapped), m))["n_blocked"] == 0

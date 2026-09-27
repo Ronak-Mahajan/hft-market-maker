@@ -53,6 +53,12 @@ jobs:
           echo "== evaluate.py --seeds 500 :: $(date -u +%FT%TZ)" | tee -a ci.log
           python evaluate.py --seeds 500 2>&1 | tee -a ci.log; exit ${PIPESTATUS[0]}
 
+      - name: Evaluate with the position limit lifted (500 paired seeds)
+        shell: bash
+        run: |
+          echo "== evaluate.py --seeds 500 --max-inventory none :: $(date -u +%FT%TZ)" | tee -a ci.log
+          python evaluate.py --seeds 500 --max-inventory none 2>&1 | tee -a ci.log; exit ${PIPESTATUS[0]}
+
       - name: Gamma sweep (100 paired seeds)
         shell: bash
         run: |
@@ -67,7 +73,7 @@ jobs:
           echo "== done :: $(date -u +%FT%TZ)" | tee -a ci.log
           exit $rc
 
-      # The three steps above rewrite the four artifacts in the working tree.
+      # The four steps above rewrite the six artifacts in the working tree.
       # This compares them with the committed copies and fails on any
       # difference (floats beyond a relative 1e-9, or any discrete field).
       - name: Check regenerated artifacts against the committed copies
@@ -85,6 +91,8 @@ jobs:
             ci.log
             results.json
             results_seeds.csv
+            results_uncapped.json
+            results_seeds_uncapped.csv
             results_sweep.json
             audit_results.json
           if-no-files-found: ignore

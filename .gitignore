@@ -6,7 +6,10 @@ ci.log
 # audit scratch
 _*.py
 
-# --gamma runs write their own artifacts; only the headline ones are tracked
+# --gamma and --max-inventory N runs write their own artifacts; only the
+# headline and uncapped ones are tracked
 results_gamma_*.json
 results_seeds_gamma_*.csv
+results_cap_*.json
+results_seeds_cap_*.csv
 .venv/
