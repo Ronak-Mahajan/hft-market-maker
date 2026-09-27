@@ -393,6 +393,13 @@ def metrics(s: MarketMaker) -> dict[str, float]:
     defaults, which is why final_pnl cannot resolve a difference that edge
     measures to within a dollar or two.
 
+    max_drawdown is in dollars, so it scales with the price path: a seed
+    whose mid runs into the thousands draws down thousands of times more
+    than one whose mid sinks below $1. log_max_drawdown = ln|max_drawdown|
+    removes the scale from a comparison, since the paired difference of two
+    arms' logs is the log of their drawdown ratio on that seed. It is nan
+    for a run that never draws down.
+
     n_blocked counts fills refused by the position limit (the draw beat the
     fill probability, but the trade would have taken |q| past
     max_inventory). ticks_at_cap counts the ticks that end with the position
@@ -407,6 +414,7 @@ def metrics(s: MarketMaker) -> dict[str, float]:
     step_pnl = np.diff(pnl)
     peak = np.maximum.accumulate(pnl)
     edge = s.cfg.order_size * float(np.dot(s.fills, s.mids - s.fill_prices))
+    max_drawdown = float(np.min(pnl - peak))
     return {
         "final_pnl": float(pnl[-1]),
         "edge": edge,
@@ -414,7 +422,9 @@ def metrics(s: MarketMaker) -> dict[str, float]:
         "pnl_std": float(step_pnl.std()),
         "t_stat": float(step_pnl.mean() / (step_pnl.std() + 1e-12)
                         * math.sqrt(len(step_pnl))),
-        "max_drawdown": float(np.min(pnl - peak)),
+        "max_drawdown": max_drawdown,
+        "log_max_drawdown": (math.log(-max_drawdown) if max_drawdown < 0
+                             else math.nan),
         "inventory_std": float(s.inv_path.std()),
         "max_abs_inventory": float(np.abs(s.inv_path).max()),
         "n_fills": float(s.n_fills),

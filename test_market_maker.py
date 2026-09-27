@@ -422,6 +422,27 @@ def test_evaluate_report_schema_v2():
     assert rep["arm_spreads"]["spread_matched"] == pytest.approx(2 * model_half_spread(cfg))
 
 
+def test_log_drawdown_comparison_is_the_per_seed_drawdown_ratio():
+    """Dollar drawdown scales with each seed's price level. The
+    log_max_drawdown comparison is the mean over seeds of ln(|dd_b|/|dd_a|),
+    positive when a draws down less, and its pct is the geometric-mean
+    reduction 1 - exp(-mean). Benchmark-basis percentages are the difference
+    over the benchmark arm's mean."""
+    cfg = Config(n_ticks=300)
+    arrays = evaluate.to_arrays(evaluate.evaluate(cfg, range(4)))
+    c = evaluate.compare(arrays, "as", "fixed")
+    log_ratio = np.log(arrays["fixed"]["max_drawdown"] / arrays["as"]["max_drawdown"])
+    s = c["log_max_drawdown"]
+    assert s["mean"] == pytest.approx(log_ratio.mean())
+    assert s["pct"]["basis"] == "log"
+    assert s["pct"]["mean"] == pytest.approx(100 * (1 - np.exp(-log_ratio.mean())))
+    assert s["pct"]["ci95"][0] < s["pct"]["mean"] < s["pct"]["ci95"][1]
+    b = c["inventory_std"]
+    assert b["pct"]["mean"] == pytest.approx(
+        100 * b["mean"] / arrays["fixed"]["inventory_std"].mean())
+    assert "pct" not in c["t_stat"]
+
+
 def test_evaluate_seeds_csv_round_trips(tmp_path):
     cfg = Config(n_ticks=200)
     rows = evaluate.evaluate(cfg, range(2))

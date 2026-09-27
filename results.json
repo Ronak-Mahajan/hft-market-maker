@@ -44,6 +44,7 @@
     "pnl_std": 227.56308,
     "t_stat": -0.01189602151,
     "max_drawdown": -29177.34966,
+    "log_max_drawdown": 9.499951206,
     "inventory_std": 50.54522993,
     "max_abs_inventory": 100.0,
     "n_fills": 553.02,
@@ -59,6 +60,7 @@
     "pnl_std": 20.10095787,
     "t_stat": 0.04092141322,
     "max_drawdown": 3465.532376,
+    "log_max_drawdown": 0.05050025935,
     "inventory_std": 0.4117920494,
     "max_abs_inventory": 0.0,
     "n_fills": 1.209129931,
@@ -77,6 +79,7 @@
     "pnl_std": 215.2737304,
     "t_stat": 0.03511844449,
     "max_drawdown": -27183.67374,
+    "log_max_drawdown": 9.419761983,
     "inventory_std": 44.41259586,
     "max_abs_inventory": 99.74,
     "n_fills": 344.57,
@@ -92,6 +95,7 @@
     "pnl_std": 16.92371833,
     "t_stat": 0.04071332484,
     "max_drawdown": 2405.110861,
+    "log_max_drawdown": 0.05259043868,
     "inventory_std": 0.4773075292,
     "max_abs_inventory": 0.09100199298,
     "n_fills": 0.9170802978,
@@ -110,6 +114,7 @@
     "pnl_std": 202.9238564,
     "t_stat": 0.00637727188,
     "max_drawdown": -26336.94843,
+    "log_max_drawdown": 9.32794031,
     "inventory_std": 46.14346687,
     "max_abs_inventory": 99.92,
     "n_fills": 566.584,
@@ -125,6 +130,7 @@
     "pnl_std": 18.79191861,
     "t_stat": 0.04075247059,
     "max_drawdown": 3321.871645,
+    "log_max_drawdown": 0.05188856871,
     "inventory_std": 0.318059775,
     "max_abs_inventory": 0.03987957825,
     "n_fills": 1.138756964,
@@ -143,6 +149,7 @@
     "pnl_std": 195.782023,
     "t_stat": 0.04037106408,
     "max_drawdown": -25206.27068,
+    "log_max_drawdown": 9.269896834,
     "inventory_std": 41.95267721,
     "max_abs_inventory": 98.96,
     "n_fills": 352.33,
@@ -158,6 +165,7 @@
     "pnl_std": 17.5976478,
     "t_stat": 0.04131277994,
     "max_drawdown": 2571.88429,
+    "log_max_drawdown": 0.0535372812,
     "inventory_std": 0.3845617518,
     "max_abs_inventory": 0.1862960344,
     "n_fills": 0.8712981815,
@@ -201,7 +209,15 @@
      ],
      "median": 59.65950979,
      "win_rate": 1.0,
-     "significant": true
+     "significant": true,
+     "pct": {
+      "basis": "benchmark",
+      "mean": 21.72299933,
+      "ci95": [
+       21.28956359,
+       22.15643507
+      ]
+     }
     },
     "inventory_pnl": {
      "label": "inventory_pnl",
@@ -243,7 +259,15 @@
      ],
      "median": 6.008217538,
      "win_rate": 0.732,
-     "significant": true
+     "significant": true,
+     "pct": {
+      "basis": "benchmark",
+      "mean": 12.13296304,
+      "ci95": [
+       10.44932631,
+       13.81659978
+      ]
+     }
     },
     "max_drawdown": {
      "label": "max_drawdown",
@@ -257,7 +281,37 @@
      ],
      "median": 402.8673734,
      "win_rate": 0.57,
-     "significant": false
+     "significant": false,
+     "pct": {
+      "basis": "benchmark",
+      "mean": 6.83295758,
+      "ci95": [
+       -8.527393607,
+       22.19330877
+      ]
+     }
+    },
+    "log_max_drawdown": {
+     "label": "log_max_drawdown",
+     "unit": "",
+     "n": 500,
+     "mean": 0.08018922324,
+     "se": 0.01906819717,
+     "ci95": [
+      0.04281555679,
+      0.1175628897
+     ],
+     "median": 0.05862676921,
+     "win_rate": 0.57,
+     "significant": true,
+     "pct": {
+      "basis": "log",
+      "mean": 7.705831215,
+      "ci95": [
+       4.191191339,
+       11.09154043
+      ]
+     }
     },
     "n_fills": {
      "label": "n_fills",
@@ -271,7 +325,15 @@
      ],
      "median": -208.0,
      "win_rate": 0.0,
-     "significant": true
+     "significant": true,
+     "pct": {
+      "basis": "benchmark",
+      "mean": -37.69303099,
+      "ci95": [
+       -37.98467364,
+       -37.40138835
+      ]
+     }
     },
     "n_blocked": {
      "label": "n_blocked",
@@ -335,7 +397,15 @@
      ],
      "median": 4.283543,
      "win_rate": 0.854,
-     "significant": true
+     "significant": true,
+     "pct": {
+      "basis": "benchmark",
+      "mean": 1.517166743,
+      "ci95": [
+       1.388203897,
+       1.646129589
+      ]
+     }
     },
     "inventory_pnl": {
      "label": "inventory_pnl",
@@ -377,7 +447,15 @@
      ],
      "median": 4.33687566,
      "win_rate": 0.854,
-     "significant": true
+     "significant": true,
+     "pct": {
+      "basis": "benchmark",
+      "mean": 8.708562741,
+      "ci95": [
+       7.883615451,
+       9.533510031
+      ]
+     }
     },
     "max_drawdown": {
      "label": "max_drawdown",
@@ -391,7 +469,37 @@
      ],
      "median": 1382.365813,
      "win_rate": 0.828,
-     "significant": true
+     "significant": true,
+     "pct": {
+      "basis": "benchmark",
+      "mean": 9.734952848,
+      "ci95": [
+       7.628976046,
+       11.84092965
+      ]
+     }
+    },
+    "log_max_drawdown": {
+     "label": "log_max_drawdown",
+     "unit": "",
+     "n": 500,
+     "mean": 0.1720108963,
+     "se": 0.009951588721,
+     "ci95": [
+      0.1525057824,
+      0.1915160102
+     ],
+     "median": 0.1400064787,
+     "win_rate": 0.828,
+     "significant": true,
+     "pct": {
+      "basis": "log",
+      "mean": 15.80300012,
+      "ci95": [
+       14.14460705,
+       17.42935947
+      ]
+     }
     },
     "n_fills": {
      "label": "n_fills",
@@ -405,7 +513,15 @@
      ],
      "median": 14.0,
      "win_rate": 0.96,
-     "significant": true
+     "significant": true,
+     "pct": {
+      "basis": "benchmark",
+      "mean": 2.452714188,
+      "ci95": [
+       2.324797266,
+       2.580631109
+      ]
+     }
     },
     "n_blocked": {
      "label": "n_blocked",
@@ -469,7 +585,15 @@
      ],
      "median": 65.42079294,
      "win_rate": 1.0,
-     "significant": true
+     "significant": true,
+     "pct": {
+      "basis": "benchmark",
+      "mean": 23.85252716,
+      "ci95": [
+       23.45846027,
+       24.24659405
+      ]
+     }
     },
     "inventory_pnl": {
      "label": "inventory_pnl",
@@ -511,7 +635,15 @@
      ],
      "median": 8.613557012,
      "win_rate": 0.854,
-     "significant": true
+     "significant": true,
+     "pct": {
+      "basis": "benchmark",
+      "mean": 16.99973022,
+      "ci95": [
+       15.49232802,
+       18.50713241
+      ]
+     }
     },
     "max_drawdown": {
      "label": "max_drawdown",
@@ -525,7 +657,37 @@
      ],
      "median": 1708.322113,
      "win_rate": 0.742,
-     "significant": true
+     "significant": true,
+     "pct": {
+      "basis": "benchmark",
+      "mean": 13.6101429,
+      "ci95": [
+       1.787072088,
+       25.43321371
+      ]
+     }
+    },
+    "log_max_drawdown": {
+     "label": "log_max_drawdown",
+     "unit": "",
+     "n": 500,
+     "mean": 0.2300543723,
+     "se": 0.01897596054,
+     "ci95": [
+      0.1928614896,
+      0.2672472549
+     ],
+     "median": 0.1862916754,
+     "win_rate": 0.742,
+     "significant": true,
+     "pct": {
+      "basis": "log",
+      "mean": 20.55095969,
+      "ci95": [
+       17.54038186,
+       23.45162216
+      ]
+     }
     },
     "n_fills": {
      "label": "n_fills",
@@ -539,7 +701,15 @@
      ],
      "median": -201.0,
      "win_rate": 0.0,
-     "significant": true
+     "significant": true,
+     "pct": {
+      "basis": "benchmark",
+      "mean": -36.28982677,
+      "ci95": [
+       -36.57126398,
+       -36.00838956
+      ]
+     }
     },
     "n_blocked": {
      "label": "n_blocked",
@@ -603,7 +773,15 @@
      ],
      "median": 5.011893734,
      "win_rate": 0.854,
-     "significant": true
+     "significant": true,
+     "pct": {
+      "basis": "benchmark",
+      "mean": 2.129527826,
+      "ci95": [
+       1.928113303,
+       2.330942349
+      ]
+     }
     },
     "inventory_pnl": {
      "label": "inventory_pnl",
@@ -645,7 +823,15 @@
      ],
      "median": 2.288860264,
      "win_rate": 0.706,
-     "significant": true
+     "significant": true,
+     "pct": {
+      "basis": "benchmark",
+      "mean": 4.866767171,
+      "ci95": [
+       4.064677153,
+       5.668857189
+      ]
+     }
     },
     "max_drawdown": {
      "label": "max_drawdown",
@@ -659,7 +845,37 @@
      ],
      "median": 959.0257678,
      "win_rate": 0.794,
-     "significant": true
+     "significant": true,
+     "pct": {
+      "basis": "benchmark",
+      "mean": 6.777185316,
+      "ci95": [
+       2.279846101,
+       11.27452453
+      ]
+     }
+    },
+    "log_max_drawdown": {
+     "label": "log_max_drawdown",
+     "unit": "",
+     "n": 500,
+     "mean": 0.149865149,
+     "se": 0.01040539292,
+     "ci95": [
+      0.1294705789,
+      0.1702597192
+     ],
+     "median": 0.1123680723,
+     "win_rate": 0.794,
+     "significant": true,
+     "pct": {
+      "basis": "log",
+      "mean": 13.91759484,
+      "ci95": [
+       12.14395637,
+       15.65542709
+      ]
+     }
     },
     "n_fills": {
      "label": "n_fills",
@@ -673,7 +889,15 @@
      ],
      "median": 7.0,
      "win_rate": 0.89,
-     "significant": true
+     "significant": true,
+     "pct": {
+      "basis": "benchmark",
+      "mean": 1.403204224,
+      "ci95": [
+       1.300608823,
+       1.505799626
+      ]
+     }
     },
     "n_blocked": {
      "label": "n_blocked",
@@ -710,7 +934,9 @@
   "edge": "spread captured: order_size * sum over fills of the fill's distance from that tick's mid",
   "inventory_pnl": "sum over ticks of inventory held into the tick times the mid's change; final_pnl = edge + inventory_pnl, and E[inventory_pnl] = 0 here (market_maker.metrics)",
   "t_stat": "mean(step pnl)/std(step pnl)*sqrt(n_steps); the whole-horizon Sharpe, not annualised",
-  "max_drawdown": "<= 0; a positive difference means a shallower drawdown for arm a",
+  "max_drawdown": "<= 0, in dollars; a positive difference means a shallower drawdown for arm a. Scales with the price path, so a few high-price seeds dominate the mean",
+  "log_max_drawdown": "ln|max_drawdown|; a paired difference is the per-seed log of the drawdown ratio b/a, free of the price level. pct = 1 - exp(-mean): the geometric-mean drawdown reduction",
+  "pct": "benchmark basis: 100 * difference / |benchmark mean|; log basis: 100 * (1 - exp(-difference))",
   "quote_crossings": "ticks on which a raw quote crossed the mid and was clamped to it (market_maker.MarketMaker.step)",
   "floored_bids": "ticks on which the raw bid was below Config.min_price and was raised to it",
   "blocked_fills": "fills that won their draw but were refused because the trade would take |q| past max_inventory",

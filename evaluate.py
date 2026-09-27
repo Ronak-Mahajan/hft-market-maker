@@ -77,7 +77,18 @@ ARM_NAMES = {cls.slug: cls.name for cls in ARMS}
 # (metric, better_is_higher). Differences are oriented so positive = a better.
 METRICS = (("final_pnl", True), ("edge", True), ("inventory_pnl", True),
            ("t_stat", True), ("inventory_std", False), ("max_drawdown", True),
-           ("n_fills", True), ("n_blocked", False), ("ticks_at_cap", False))
+           ("log_max_drawdown", False), ("n_fills", True), ("n_blocked", False),
+           ("ticks_at_cap", False))
+
+# Metrics whose paired differences are also reported as percentages, under
+# "pct" in each summary:
+#   benchmark  100 * difference / |the benchmark arm's mean|: points of the
+#              benchmark's level (inventory sigma 17.0% = 8.59 / 50.5)
+#   log        100 * (1 - exp(-difference)): the percentage reduction that a
+#              mean log ratio corresponds to (a geometric-mean ratio)
+PCT_BASIS = {"edge": "benchmark", "inventory_std": "benchmark",
+             "max_drawdown": "benchmark", "log_max_drawdown": "log",
+             "n_fills": "benchmark"}
 
 # (a, b, question). Each summary is a - b, oriented by METRICS.
 COMPARISONS = (
@@ -129,17 +140,45 @@ def arm_spreads(cfg: Config) -> dict[str, float]:
             AvellanedaStoikovMaker.slug: model}
 
 
-def summarise(diffs: np.ndarray, label: str, unit: str = "") -> dict:
+def summarise(diffs: np.ndarray, label: str, unit: str = "",
+              pct: tuple[str, float] | None = None) -> dict:
     """Mean paired difference with a normal-approximation 95% CI, median and
-    win rate. `significant` means the CI excludes zero."""
+    win rate. `significant` means the CI excludes zero.
+
+    pct = (basis, benchmark_mean) adds the mean and CI as percentages (see
+    PCT_BASIS)."""
     n = len(diffs)
     mean = float(diffs.mean())
     se = float(diffs.std(ddof=1) / math.sqrt(n)) if n > 1 else float("nan")
     lo, hi = mean - 1.96 * se, mean + 1.96 * se
-    return {"label": label, "unit": unit, "n": int(n), "mean": mean, "se": se,
-            "ci95": [lo, hi], "median": float(np.median(diffs)),
-            "win_rate": float((diffs > 0).mean()),
-            "significant": bool(lo > 0 or hi < 0)}
+    out = {"label": label, "unit": unit, "n": int(n), "mean": mean, "se": se,
+           "ci95": [lo, hi], "median": float(np.median(diffs)),
+           "win_rate": float((diffs > 0).mean()),
+           "significant": bool(lo > 0 or hi < 0)}
+    if pct is not None:
+        basis, bench = pct
+        if basis == "log":
+            def f(x): return 100.0 * -math.expm1(-x)
+        else:
+            def f(x): return 100.0 * x / abs(bench)
+        out["pct"] = {"basis": basis, "mean": f(mean), "ci95": [f(lo), f(hi)]}
+    return out
+
+
+def oriented(arrays: dict[str, dict[str, np.ndarray]], slug: str,
+             k: str, higher: bool) -> np.ndarray:
+    """An arm's per-seed metric, negated when lower is better, so that every
+    difference of two of these is positive when the first arm is better."""
+    v = arrays[slug][k]
+    return v if higher else -v
+
+
+def pct_spec(arrays: dict[str, dict[str, np.ndarray]],
+             k: str) -> tuple[str, float] | None:
+    basis = PCT_BASIS.get(k)
+    if basis is None:
+        return None
+    return basis, float(arrays[BENCHMARK][k].mean())
 
 
 def compare(arrays: dict[str, dict[str, np.ndarray]], a: str, b: str) -> dict:
@@ -147,10 +186,8 @@ def compare(arrays: dict[str, dict[str, np.ndarray]], a: str, b: str) -> dict:
     Returns a dict keyed by metric."""
     out = {}
     for k, higher in METRICS:
-        d = arrays[a][k] - arrays[b][k]
-        if not higher:
-            d = -d
-        out[k] = summarise(d, k)
+        d = oriented(arrays, a, k, higher) - oriented(arrays, b, k, higher)
+        out[k] = summarise(d, k, pct=pct_spec(arrays, k))
     return out
 
 
@@ -220,8 +257,16 @@ def build_report(cfg: Config, rows, n_seeds: int) -> dict:
                              "(market_maker.metrics)",
             "t_stat": "mean(step pnl)/std(step pnl)*sqrt(n_steps); the "
                       "whole-horizon Sharpe, not annualised",
-            "max_drawdown": "<= 0; a positive difference means a shallower "
-                            "drawdown for arm a",
+            "max_drawdown": "<= 0, in dollars; a positive difference means a "
+                            "shallower drawdown for arm a. Scales with the "
+                            "price path, so a few high-price seeds dominate "
+                            "the mean",
+            "log_max_drawdown": "ln|max_drawdown|; a paired difference is the "
+                                "per-seed log of the drawdown ratio b/a, free "
+                                "of the price level. pct = 1 - exp(-mean): the "
+                                "geometric-mean drawdown reduction",
+            "pct": "benchmark basis: 100 * difference / |benchmark mean|; log "
+                   "basis: 100 * (1 - exp(-difference))",
             "quote_crossings": "ticks on which a raw quote crossed the mid and "
                                "was clamped to it (market_maker.MarketMaker.step)",
             "floored_bids": "ticks on which the raw bid was below "
