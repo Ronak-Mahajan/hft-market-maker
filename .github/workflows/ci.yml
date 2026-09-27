@@ -19,10 +19,10 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    # The whole job is about a minute of compute (pytest 1 s, evaluate --seeds
-    # 500 19 s, the same run with --max-inventory none 19 s, the 100-seed
-    # gamma sweep 21 s, audit --seeds 200 3 s, measured on run 36295419274).
-    # The cap is the ten-minute budget the README states.
+    # The generators take about a minute (evaluate --seeds 500 19 s, the same
+    # run with --max-inventory none 19 s, the 100-seed gamma sweep 22 s,
+    # audit --seeds 200 5 s; pytest under 1 s), and the whole job, install
+    # included, 75 s, measured on run 36296855747. The cap stops a hung run.
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
