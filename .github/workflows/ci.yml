@@ -4,29 +4,31 @@ on:
   push:
     branches:
       - main
-      - honest-decomposition
       - 'rebuild/**'
       - 'fix/**'
   pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   ci:
     runs-on: ubuntu-latest
-    # The whole job is ~1 minute of compute (pytest 2 s, evaluate --seeds 500
-    # 21 s, the 100-seed gamma sweep 23 s, audit --seeds 200 4 s, measured), so
-    # this cap asserts the ten-minute budget the README claims rather than
-    # merely allowing it.
-    timeout-minutes: 12
+    # The whole job is about a minute of compute (pytest 2 s, evaluate --seeds
+    # 500 21 s, the 100-seed gamma sweep 23 s, audit --seeds 200 4 s,
+    # measured). The cap is the ten-minute budget the README states.
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          fetch-depth: 0
+          persist-credentials: false
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.12'
 
@@ -66,40 +68,25 @@ jobs:
           echo "== done :: $(date -u +%FT%TZ)" | tee -a ci.log
           exit $rc
 
-      # Both write-back steps are skipped on pull_request events: there
-      # GITHUB_REF_NAME is '<n>/merge', which is not a pushable branch.
-      - name: Commit regenerated results to this branch
-        if: success() && github.event_name != 'pull_request' && github.ref != 'refs/heads/main'
+      # The three steps above rewrite the four artifacts in the working tree.
+      # This compares them with the committed copies and fails on any
+      # difference (floats beyond a relative 1e-9, or any discrete field).
+      - name: Check regenerated artifacts against the committed copies
         shell: bash
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add results.json results_seeds.csv results_sweep.json audit_results.json
-          if git diff --cached --quiet; then
-            echo "results unchanged; nothing to commit"
-            exit 0
-          fi
-          git commit -m "ci: regenerate results (${GITHUB_SHA::7}) [skip ci]" \
-            -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
-          git stash push --include-untracked -q || true
-          git pull --rebase origin "$GITHUB_REF_NAME"
-          git push origin HEAD:"$GITHUB_REF_NAME"
+          echo "== check_artifacts.py :: $(date -u +%FT%TZ)" | tee -a ci.log
+          python scripts/check_artifacts.py 2>&1 | tee -a ci.log; exit ${PIPESTATUS[0]}
 
-      - name: Save failure log to the branch
-        if: failure() && github.event_name != 'pull_request' && github.ref != 'refs/heads/main'
-        shell: bash
-        run: |
-          mkdir -p .ci
-          if [ -f ci.log ]; then
-            tail -c 60000 ci.log > .ci/last-failure-ci.log
-          else
-            echo "no ci.log captured" > .ci/last-failure-ci.log
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .ci/last-failure-ci.log
-          git commit -m "ci: failure log [skip ci]" \
-            -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>" || exit 0
-          git stash push --include-untracked -q || true
-          git pull --rebase origin "$GITHUB_REF_NAME"
-          git push origin HEAD:"$GITHUB_REF_NAME"
+      - name: Upload the log and regenerated artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-failure-attempt-${{ github.run_attempt }}
+          path: |
+            ci.log
+            results.json
+            results_seeds.csv
+            results_sweep.json
+            audit_results.json
+          if-no-files-found: ignore
+          retention-days: 14
