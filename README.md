@@ -295,8 +295,8 @@ resolvable:
    seeds with a 95% confidence interval and a win rate, and the per-seed arrays
    are committed.
 
-The same treatment is applied to the simpler quoting rule that `simulation.ipynb`
-explores: a fixed 0.10 spread with a skew of `−q*γ*σ²` and no horizon term.
+The same treatment is applied to a simpler quoting rule: a fixed 0.10 spread
+with a skew of `−q*γ*σ²` and no horizon term.
 `audit.py` replays it against the benchmark on 200 paired seeds and writes
 `audit_results.json`, which CI checks on every push. Its per-seed P&L
 "improvement" ranges from −229% to +179%
@@ -362,8 +362,6 @@ is the cleanest test of the skew on its own.
   point of the highest mid and more than the whole price at the lowest (see
   Price level above).
 - One asset, one maker, no latency, no fees.
-- `simulation.ipynb` implements and plots the simpler rule audited by `audit.py`,
-  not the four arms; its figures are not of the current strategies.
 
 ## Layout
 
@@ -389,5 +387,4 @@ results_uncapped.json  the same run with the position limit lifted, and
 results_seeds_uncapped.csv its per-seed rows                       (checked by CI)
 results_sweep.json     the same summaries on a gamma grid, 100 seeds (checked by CI)
 audit_results.json     audit.py output                             (checked by CI)
-simulation.ipynb       exploratory notebook for the simpler rule and its plots
 ```
