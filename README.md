@@ -11,7 +11,7 @@ python evaluate.py --seeds 500 --max-inventory none   # position limit lifted ->
 python evaluate.py --seeds 100 --gamma-sweep   # -> results_sweep.json
 python audit.py --seeds 200           # paired replay of the simpler rule -> audit_results.json
 python scripts/check_artifacts.py     # regenerated artifacts vs the committed copies
-python -m pytest -q                   # 33 tests
+python -m pytest -q                   # 34 tests
 ```
 
 ## The problem
@@ -369,15 +369,17 @@ is the cleanest test of the skew on its own.
 market_maker.py        Config, market draw, the four strategies, run(), metrics()
 evaluate.py            paired four-arm evaluation, 2x2 factorial, gamma sweep, per-seed CSV,
                        schema-v3 JSON
-audit.py               paired multi-seed replay of the simpler skew rule
+audit.py               paired multi-seed replay of the horizon-free skew rule, with
+                       skew_only on the same seeds
 scripts/
   check_artifacts.py   regenerated artifacts vs the committed copies; CI fails on a difference
-test_market_maker.py   29 tests: CRN fill-subset property, P&L accounting from the
+test_market_maker.py   30 tests: CRN fill-subset property, P&L accounting from the
                        fill record, the spread-captured and inventory P&L split,
                        closed-form spread, skew units, crossing guard (clamp,
                        count, and price cap), price floor, inventory cap and
                        blocked fills, config validation, factorial identities,
-                       results schema
+                       results schema, the audited rule as skew_only with τ
+                       held at 1
 test_artifacts.py      4 tests: 10-digit float rounding in the writers, and the
                        tolerance and exact-match rules of check_artifacts.py
 results.json           per-arm means, every pairwise comparison and the factorial

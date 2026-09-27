@@ -9,22 +9,27 @@ Two quoters on the same market, at the market_maker.Config defaults:
         gamma = 0.5, with no (T - t) term, so the lean is the same at every tick
 
 B is the inventory intuition without the model's horizon. market_maker.py's
-SkewOnlyMaker is the same rule with the lean scaled by the time remaining.
+SkewOnlyMaker is the same rule with the lean scaled by the time remaining,
+tau = 1 - t/n_ticks, which averages one half over the run. This script runs
+SkewOnlyMaker on the same seeds and reports its reductions against A beside
+B's, so the two rules are compared on the same draws and the same metric.
 
 Pairing
 -------
 The price path, arrivals, directions and per-tick fill uniforms are drawn once
-per seed, in the same order as market_maker.simulate_market, and both quoters
-consume the same draws, so the per-seed difference between them is the rule's
-and not the fill luck's. The implementation here is independent of
-market_maker.py.
+per seed, in the same order as market_maker.simulate_market, and every quoter
+consumes the same draws, so the fill luck cancels out of each per-seed
+difference. A and B are implemented here independently of market_maker.py;
+test_market_maker.py checks that FixedSpreadMaker reproduces A and that
+SkewOnlyMaker with tau held at 1 reproduces B, tick for tick.
 
 Outputs
 -------
-    audit_results.json   per-seed metrics for A and B, and the paired summary:
-                         the P&L difference with a 95% CI and win rate, each
-                         quoter's profitable share, and the per-seed
-                         inventory-sigma and drawdown reductions
+    audit_results.json   per-seed metrics for A, B and skew_only, and the
+                         paired summary: B's P&L difference against A with a
+                         95% CI and win rate, each quoter's profitable share,
+                         and the per-seed inventory-sigma and drawdown
+                         reductions against A, for B and for skew_only
 
 Usage:
     python audit.py --seeds 200            # writes audit_results.json
@@ -39,8 +44,12 @@ from dataclasses import dataclass
 import numpy as np
 
 from evaluate import write_json
+from market_maker import Config, SkewOnlyMaker, metrics, run, simulate_market
 
 SCHEMA_VERSION = 2
+
+# the SkewOnlyMaker metrics stored per seed
+SKEW_ONLY_KEYS = ("final_pnl", "max_drawdown", "inventory_std")
 
 
 @dataclass(frozen=True)
@@ -144,14 +153,54 @@ def rule_metrics(s: RuleMaker) -> dict[str, float]:
     }
 
 
+def market_config(cfg: AuditConfig) -> Config:
+    """The market_maker.Config with the same market and quoting parameters,
+    so simulate_market draws the same market as draw_market."""
+    return Config(initial_price=cfg.initial_price, drift=cfg.drift,
+                  volatility=cfg.volatility, dt=cfg.dt,
+                  poisson_rate=cfg.poisson_rate, order_size=cfg.order_size,
+                  kappa=cfg.kappa, n_ticks=cfg.n_ticks,
+                  max_inventory=cfg.max_inventory,
+                  fixed_spread=cfg.naive_spread,
+                  risk_aversion=cfg.risk_aversion)
+
+
 def run_seed(cfg: AuditConfig, seed: int) -> dict[str, dict[str, float]]:
     market = draw_market(cfg, seed)
-    return {name: rule_metrics(replay(cls, cfg, market))
-            for name, cls in (("A", Naive), ("B", InventoryAware))}
+    out = {name: rule_metrics(replay(cls, cfg, market))
+           for name, cls in (("A", Naive), ("B", InventoryAware))}
+    mcfg = market_config(cfg)
+    k = metrics(run(SkewOnlyMaker(mcfg), simulate_market(mcfg, seed)))
+    out["skew_only"] = {key: k[key] for key in SKEW_ONLY_KEYS}
+    return out
 
 
 def pct(v: np.ndarray, q: float) -> float:
     return float(np.percentile(v, q))
+
+
+def reductions(istd_a: np.ndarray, mdd_a: np.ndarray, istd: np.ndarray,
+               mdd: np.ndarray) -> tuple[dict, dict]:
+    """Per-seed inventory-sigma and drawdown reductions against A, in
+    percent: 5th percentile, median, 95th percentile and the share of
+    seeds on which the quoter is lower (shallower)."""
+    inv_red = (1.0 - istd / istd_a) * 100.0
+    with np.errstate(divide="ignore", invalid="ignore"):
+        mdd_red = np.where(mdd_a != 0, (1.0 - mdd / mdd_a) * 100.0, np.nan)
+    finite = mdd_red[~np.isnan(mdd_red)]
+    return ({"p5": pct(inv_red, 5), "median": float(np.median(inv_red)),
+             "p95": pct(inv_red, 95), "win_rate": float((istd < istd_a).mean())},
+            {"p5": pct(finite, 5), "median": float(np.median(finite)),
+             "p95": pct(finite, 95), "win_rate": float((mdd > mdd_a).mean())})
+
+
+def print_reductions(label: str, inv: dict, mdd: dict) -> None:
+    print(f"{label}: inventory-std reduction median {inv['median']:+.1f}% "
+          f"(p5 {inv['p5']:+.1f}%, p95 {inv['p95']:+.1f}%), lower in "
+          f"{inv['win_rate'] * 100:.1f}% of seeds")
+    print(f"{' ' * len(label)}  max-drawdown reduction median {mdd['median']:+.1f}% "
+          f"(p5 {mdd['p5']:+.1f}%, p95 {mdd['p95']:+.1f}%), shallower in "
+          f"{mdd['win_rate'] * 100:.1f}% of seeds")
 
 
 def main() -> None:
@@ -168,17 +217,18 @@ def main() -> None:
         return np.array([r[strategy][key] for r in rows])
 
     pnl_a, pnl_b = col("A", "final_pnl"), col("B", "final_pnl")
-    istd_a, istd_b = col("A", "inventory_std"), col("B", "inventory_std")
-    mdd_a, mdd_b = col("A", "max_drawdown"), col("B", "max_drawdown")
-    inv_red = (1.0 - istd_b / istd_a) * 100.0
-    with np.errstate(divide="ignore", invalid="ignore"):
-        mdd_red = np.where(mdd_a != 0, (1.0 - mdd_b / mdd_a) * 100.0, np.nan)
+    istd_a, mdd_a = col("A", "inventory_std"), col("A", "max_drawdown")
+    inv_b, mdd_b = reductions(istd_a, mdd_a, col("B", "inventory_std"),
+                              col("B", "max_drawdown"))
+    inv_so, mdd_so = reductions(istd_a, mdd_a, col("skew_only", "inventory_std"),
+                                col("skew_only", "max_drawdown"))
 
     n = len(rows)
     d_pnl = pnl_b - pnl_a
     se_pnl = float(d_pnl.std(ddof=1) / math.sqrt(n))
 
-    print(f"{n} paired seeds: A = benchmark, B = horizon-free skew rule\n")
+    print(f"{n} paired seeds: A = benchmark, B = horizon-free skew rule, "
+          "skew_only = B's lean scaled by tau\n")
     print(f"{'metric':<30}{'p5':>12}{'median':>12}{'p95':>12}")
     for lab, v in (("A final P&L", pnl_a), ("B final P&L", pnl_b)):
         print(f"{lab:<30}{pct(v, 5):>12,.0f}{np.median(v):>12,.0f}{pct(v, 95):>12,.0f}")
@@ -188,22 +238,20 @@ def main() -> None:
     print(f"B beats A on P&L in {(pnl_b > pnl_a).mean() * 100:.1f}% of seeds; "
           f"paired mean B-A = {d_pnl.mean():,.0f} "
           f"[{d_pnl.mean() - 1.96 * se_pnl:,.0f}, {d_pnl.mean() + 1.96 * se_pnl:,.0f}]")
-    print(f"inventory-std reduction: median {np.median(inv_red):+.1f}%  "
-          f"(p5 {pct(inv_red, 5):+.1f}%, p95 {pct(inv_red, 95):+.1f}%), "
-          f"B lower in {(istd_b < istd_a).mean() * 100:.1f}% of seeds")
-    finite = mdd_red[~np.isnan(mdd_red)]
-    print(f"max-drawdown reduction : median {np.median(finite):+.1f}%  "
-          f"(p5 {pct(finite, 5):+.1f}%, p95 {pct(finite, 95):+.1f}%), "
-          f"B shallower in {(mdd_b > mdd_a).mean() * 100:.1f}% of seeds")
+    print_reductions("B", inv_b, mdd_b)
+    print_reductions("skew_only", inv_so, mdd_so)
 
     out = {
         "schema": SCHEMA_VERSION,
         "model": "A: fixed 0.10 spread, symmetric; B: the same spread around "
-                 "r = s - q*gamma*sigma^2 with gamma=0.5 and no horizon term",
+                 "r = s - q*gamma*sigma^2 with gamma=0.5 and no horizon term; "
+                 "skew_only: market_maker.SkewOnlyMaker, B's lean scaled by "
+                 "tau = 1 - t/n_ticks",
         "paired": True,
         "n_seeds": n,
         "config": cfg.__dict__,
-        "per_seed": [{"seed": i, "A": r["A"], "B": r["B"]} for i, r in enumerate(rows)],
+        "per_seed": [{"seed": i, "A": r["A"], "B": r["B"],
+                      "skew_only": r["skew_only"]} for i, r in enumerate(rows)],
         "summary": {
             "pnl_A": {"p5": pct(pnl_a, 5), "median": float(np.median(pnl_a)),
                       "p95": pct(pnl_a, 95), "profitable_share": float((pnl_a > 0).mean())},
@@ -213,14 +261,10 @@ def main() -> None:
                               "ci95": [float(d_pnl.mean() - 1.96 * se_pnl),
                                        float(d_pnl.mean() + 1.96 * se_pnl)],
                               "win_rate": float((pnl_b > pnl_a).mean())},
-            "inventory_std_reduction_pct": {"p5": pct(inv_red, 5),
-                                            "median": float(np.median(inv_red)),
-                                            "p95": pct(inv_red, 95),
-                                            "win_rate": float((istd_b < istd_a).mean())},
-            "max_drawdown_reduction_pct": {"p5": pct(finite, 5),
-                                           "median": float(np.median(finite)),
-                                           "p95": pct(finite, 95),
-                                           "win_rate": float((mdd_b > mdd_a).mean())},
+            "inventory_std_reduction_pct": inv_b,
+            "max_drawdown_reduction_pct": mdd_b,
+            "skew_only": {"inventory_std_reduction_pct": inv_so,
+                          "max_drawdown_reduction_pct": mdd_so},
         },
     }
     write_json(args.json, out)

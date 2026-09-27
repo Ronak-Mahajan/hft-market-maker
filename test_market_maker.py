@@ -7,6 +7,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
+import audit
 import evaluate
 from market_maker import (ARMS, AvellanedaStoikovMaker, Config,
                           FixedSpreadMaker, Market, SkewOnlyMaker,
@@ -528,3 +529,39 @@ def test_max_inventory_option_writes_its_own_artifacts():
     uncapped = Config(n_ticks=2_000, max_inventory=2_000 * cfg.order_size)
     for S in ARMS:
         assert metrics(run(S(uncapped), m))["n_blocked"] == 0
+
+
+# --- audit.py ---------------------------------------------------------------
+
+class _HorizonHeldAtOne(SkewOnlyMaker):
+    """SkewOnlyMaker with tau fixed at 1: the lean q*gamma*sigma^2 on every
+    tick."""
+
+    def quote(self, mid: float, t: int) -> tuple[float, float]:
+        return super().quote(mid, 0)
+
+
+def test_the_audited_rule_is_skew_only_with_the_horizon_held_at_one():
+    """audit.py implements its two quoters on its own. On the same seed its
+    benchmark must match FixedSpreadMaker, and its horizon-free rule must
+    match SkewOnlyMaker with tau held at 1, tick for tick. With the decay
+    the paths differ, so the gap between the audit's reductions and
+    skew_only's is the horizon term. Seeds 37 and 279 are the lowest- and
+    highest-price paths of the published runs."""
+    acfg = audit.AuditConfig()
+    cfg = audit.market_config(acfg)
+    for seed in (0, 37, 279):
+        drawn = audit.draw_market(acfg, seed)
+        m = simulate_market(cfg, seed)
+        for got, want in zip((m.prices, m.arrivals, m.directions, m.fill_draws),
+                             drawn):
+            assert np.array_equal(got, np.asarray(want))
+        pairs = ((audit.Naive, FixedSpreadMaker), (audit.InventoryAware,
+                                                   _HorizonHeldAtOne))
+        for rule_cls, maker_cls in pairs:
+            rule = audit.replay(rule_cls, acfg, drawn)
+            s = run(maker_cls(cfg), m)
+            assert np.array_equal(s.inv_path, rule.inv_path)
+            assert np.array_equal(s.pnl, rule.pnl)
+        decayed = run(SkewOnlyMaker(cfg), m)
+        assert not np.array_equal(decayed.inv_path, rule.inv_path)
